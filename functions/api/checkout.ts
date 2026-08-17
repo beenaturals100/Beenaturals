@@ -80,29 +80,21 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     });
 
     const preOrderData: any = await preOrderRes.json();
+    console.log("BOG Order creation response:", JSON.stringify(preOrderData));
+
     if (!preOrderRes.ok) {
-      throw new Error(preOrderData.message || preOrderData.error || "BOG iPay Order creation failed");
+      const errorMsg = preOrderData.message || preOrderData.error || preOrderData.error_description || JSON.stringify(preOrderData) || `HTTP status: ${preOrderRes.statusText}`;
+      throw new Error(`BOG API Order creation failed: ${errorMsg}`);
     }
 
-    // 3. Extract redirect URL from response links array, redirect_url field, or payment_hash
-    let redirectUrl = "";
-    if (preOrderData.redirect_url) {
-      redirectUrl = preOrderData.redirect_url;
-    } else if (Array.isArray(preOrderData.links)) {
-      const redirectLink = preOrderData.links.find(
-        (l: any) => l.rel === "redirect" || (l.method === "GET" && l.href?.includes("payment_hash="))
-      );
-      if (redirectLink) {
-        redirectUrl = redirectLink.href;
-      }
-    }
-
-    if (!redirectUrl && preOrderData.payment_hash) {
-      redirectUrl = `https://ipay.ge/pay?payment_hash=${preOrderData.payment_hash}`;
-    }
+    // 3. Extract the redirect link dynamically checking all standard BOG response structures
+    const redirectUrl = preOrderData.redirect_url || 
+                        preOrderData._links?.redirect?.href || 
+                        preOrderData._links?.details?.href || 
+                        (Array.isArray(preOrderData.links) ? preOrderData.links.find((l: any) => l.rel === 'redirect')?.href : undefined);
 
     if (!redirectUrl) {
-      throw new Error("No redirect link found in BOG response");
+      throw new Error(`No redirect link found in BOG response. Response: ${JSON.stringify(preOrderData)}`);
     }
 
     return new Response(JSON.stringify({ success: true, redirectUrl, redirect_url: redirectUrl }), {

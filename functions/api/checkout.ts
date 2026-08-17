@@ -1,7 +1,6 @@
 interface Env {
   BOG_CLIENT_ID?: string;
   BOG_SECRET_KEY?: string;
-  ENV_MODE?: string;
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
@@ -11,37 +10,19 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     
     const clientId = context.env.BOG_CLIENT_ID;
     const secretKey = context.env.BOG_SECRET_KEY;
-    const isSandbox = context.env.ENV_MODE !== "production";
 
     // Extract local request origin to construct redirect back URLs
     const requestUrl = new URL(context.request.url);
     const origin = requestUrl.origin;
 
-    // Mock Mode if BOG credentials are not configured
-    // Redirects to a visual BOG Payment Simulator page instead of instantly confirming order
     if (!clientId || !secretKey) {
-      console.warn("BOG payment credentials are not configured. Returning mock gateway simulator redirect.");
-      return new Response(
-        JSON.stringify({
-          success: true,
-          mode: "mock",
-          redirectUrl: `${origin}/pay-simulator.html?orderId=${orderId}&amount=${amount}`,
-        }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      console.warn("BOG payment credentials are not configured. Throwing configuration error.");
+      throw new Error("Bank of Georgia credentials (BOG_CLIENT_ID / BOG_SECRET_KEY) are not configured in environment variables.");
     }
 
-    // Set BOG Endpoints based on sandbox mode
-    const authUrl = isSandbox
-      ? "https://oauth2-sandbox.bog.ge/auth/realms/bog/protocol/openid-connect/token"
-      : "https://oauth2.bog.ge/auth/realms/bog/protocol/openid-connect/token";
-
-    const paymentUrl = isSandbox
-      ? "https://api-sandbox.bog.ge/payments/v1/pre-orders"
-      : "https://api.bog.ge/payments/v1/pre-orders";
+    // Set BOG Production Endpoints
+    const authUrl = "https://oauth2.bog.ge/oauth2/token";
+    const paymentUrl = "https://api.bog.ge/payments/v1/pre-orders";
 
     // 1. Authenticate with BOG (OAuth2 Client Credentials)
     const basicAuth = btoa(`${clientId}:${secretKey}`);

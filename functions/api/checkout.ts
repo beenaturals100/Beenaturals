@@ -7,7 +7,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
     const data = await context.request.json();
     const { orderId, amount, description } = data;
-    
+
     const clientId = context.env.BOG_CLIENT_ID;
     const secretKey = context.env.BOG_SECRET_KEY;
 
@@ -88,10 +88,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     // 3. Extract the redirect link dynamically checking all standard BOG response structures
-    const redirectUrl = preOrderData.redirect_url || 
-                        preOrderData._links?.redirect?.href || 
-                        preOrderData._links?.details?.href || 
-                        (Array.isArray(preOrderData.links) ? preOrderData.links.find((l: any) => l.rel === 'redirect')?.href : undefined);
+    const redirectUrl = preOrderData.redirect_url ||
+      preOrderData._links?.redirect?.href ||
+      preOrderData._links?.details?.href ||
+      (Array.isArray(preOrderData.links) ? preOrderData.links.find((l: any) => l.rel === 'redirect')?.href : undefined);
 
     if (!redirectUrl) {
       throw new Error(`No redirect link found in BOG response. Response: ${JSON.stringify(preOrderData)}`);

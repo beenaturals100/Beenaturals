@@ -7,8 +7,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
     const data = await context.request.json();
     const apiKey = context.env.RESEND_API_KEY;
-    // Default to a fallback email or the onboarding verified address
-    const recipientEmail = context.env.NOTIFICATION_EMAIL || "orders@beenaturals.store";
+    // Send all order notification emails to beenaturals100@gmail.com since Resend is in testing mode
+    const recipientEmail = "beenaturals100@gmail.com";
 
     if (!apiKey) {
       console.warn("RESEND_API_KEY is not configured. Returning mock success response.");

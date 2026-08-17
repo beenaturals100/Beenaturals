@@ -106,7 +106,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       throw new Error("No redirect link found in BOG response");
     }
 
-    return new Response(JSON.stringify({ success: true, redirectUrl }), {
+    return new Response(JSON.stringify({ success: true, redirectUrl, redirect_url: redirectUrl }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });

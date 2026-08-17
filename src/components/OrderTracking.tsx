@@ -23,6 +23,7 @@ export const OrderTracking: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [currentStage, setCurrentStage] = useState<number | null>(null);
   const [searchedCode, setSearchedCode] = useState<string | null>(null);
+  const [statusName, setStatusName] = useState<string | null>(null);
 
   const handleTrack = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,6 +35,7 @@ export const OrderTracking: React.FC = () => {
       );
       setCurrentStage(null);
       setSearchedCode(null);
+      setStatusName(null);
       return;
     }
 
@@ -41,6 +43,7 @@ export const OrderTracking: React.FC = () => {
     setError(null);
     setCurrentStage(null);
     setSearchedCode(code);
+    setStatusName(null);
 
     try {
       const res = await fetch(`/api/track?code=${code}`);
@@ -50,7 +53,8 @@ export const OrderTracking: React.FC = () => {
         throw new Error(data.error || "Order not found");
       }
 
-      setCurrentStage(data.stage ?? 0);
+      setCurrentStage(data.stage ?? 1);
+      setStatusName(data.statusName || null);
     } catch (err: any) {
       console.error(err);
       setError(
@@ -146,15 +150,16 @@ export const OrderTracking: React.FC = () => {
                 </h4>
               </div>
               <div className="px-3.5 py-1.5 rounded-full bg-honey-50 border border-honey-100 text-honey-850 text-xs font-bold font-sans">
-                {language === "ka" ? "აქტიური" : "Active"}
+                {statusName || (language === "ka" ? "აქტიური" : "Active")}
               </div>
             </div>
 
             {/* Timeline */}
             <div className="relative pl-8 border-l-2 border-stone-200 space-y-10 py-2">
               {STAGES.map((stage, idx) => {
-                const isCompleted = idx <= currentStage;
-                const isCurrent = idx === currentStage;
+                const stepNum = idx + 1;
+                const isCompleted = stepNum <= currentStage;
+                const isCurrent = stepNum === currentStage;
 
                 return (
                   <div key={idx} className="relative">

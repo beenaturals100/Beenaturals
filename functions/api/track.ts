@@ -22,16 +22,23 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     if (!apiKey) {
       console.warn("NOTION_API_KEY is not configured. Returning mock tracking status.");
       
-      let mockStage = 0;
+      let mockStage = 1;
+      let mockStatusName = "თქვენი შეკვეთა მიღებულია";
       if (code === "1001") {
-        mockStage = 0;
-      } else if (code === "1002") {
         mockStage = 1;
-      } else if (code === "1003") {
+        mockStatusName = "თქვენი შეკვეთა მიღებულია";
+      } else if (code === "1002") {
         mockStage = 2;
+        mockStatusName = "თქვენი შეკვეთა მზად არის გასაგზავნად";
+      } else if (code === "1003") {
+        mockStage = 3;
+        mockStatusName = "თქვენი შეკვეთა გაგზავნილია, კურიერი მალე მოგიტანთ";
       } else {
         const val = parseInt(code);
-        mockStage = val % 3;
+        mockStage = (val % 3) + 1;
+        if (mockStage === 1) mockStatusName = "თქვენი შეკვეთა მიღებულია";
+        else if (mockStage === 2) mockStatusName = "თქვენი შეკვეთა მზად არის გასაგზავნად";
+        else mockStatusName = "თქვენი შეკვეთა გაგზავნილია, კურიერი მალე მოგიტანთ";
       }
 
       return new Response(
@@ -39,6 +46,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
           success: true,
           mode: "mock",
           trackingCode: code,
+          statusName: mockStatusName,
           stage: mockStage,
         }),
         {
@@ -160,74 +168,46 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
 
     // 3. Extract and map status from page properties
-    const props = matchedPage.properties || {};
-    let statusValue = "";
+    const statusName = matchedPage.properties['Delivery Status']?.select?.name || matchedPage.properties['Delivery Status']?.status?.name || '';
 
-    const statusKey = Object.keys(props).find(
-      (k) =>
-        k.toLowerCase() === "status" ||
-        k.toLowerCase().includes("stage") ||
-        k.toLowerCase().includes("მდგომარეობა") ||
-        k.toLowerCase().includes("სტატუსი")
-    );
-
-    if (statusKey) {
-      const p = props[statusKey];
-      if (p.type === "status") {
-        statusValue = p.status?.name || "";
-      } else if (p.type === "select") {
-        statusValue = p.select?.name || "";
-      } else if (p.type === "rich_text") {
-        statusValue = p.rich_text?.[0]?.text?.content || "";
-      }
-    }
-
-    // Map status string to stage index: 0, 1, or 2
-    let stage = 0;
-    const lowerStatus = statusValue.toLowerCase();
+    // Map status string to stage index: 1, 2, or 3
+    let stage = 1;
+    const lowerStatus = statusName.toLowerCase();
 
     if (
-      statusValue.includes("მიღებულია") ||
-      lowerStatus.includes("received") ||
-      lowerStatus.includes("not started") ||
-      lowerStatus.includes("pending")
-    ) {
-      stage = 0;
-    }
-    if (
-      statusValue.includes("მზად არის") ||
-      lowerStatus.includes("ready") ||
-      lowerStatus.includes("in progress") ||
-      lowerStatus.includes("doing") ||
-      lowerStatus.includes("prepared") ||
-      lowerStatus.includes("pack") ||
-      lowerStatus.includes("stage1") ||
-      lowerStatus.includes("stage 1") ||
-      lowerStatus.includes("stage_1")
-    ) {
-      stage = 1;
-    }
-    if (
-      statusValue.includes("გაგზავნილია") ||
+      statusName.includes("გაგზავნილია") ||
       lowerStatus.includes("shipped") ||
-      lowerStatus.includes("sent") ||
       lowerStatus.includes("delivered") ||
       lowerStatus.includes("transit") ||
       lowerStatus.includes("კურიერ") ||
       lowerStatus.includes("done") ||
       lowerStatus.includes("completed") ||
+      lowerStatus.includes("stage3") ||
+      lowerStatus.includes("stage 3") ||
+      lowerStatus.includes("stage_3")
+    ) {
+      stage = 3;
+    } else if (
+      statusName.includes("მზად არის") ||
+      lowerStatus.includes("ready") ||
+      lowerStatus.includes("in progress") ||
+      lowerStatus.includes("doing") ||
+      lowerStatus.includes("prepared") ||
+      lowerStatus.includes("pack") ||
       lowerStatus.includes("stage2") ||
       lowerStatus.includes("stage 2") ||
       lowerStatus.includes("stage_2")
     ) {
       stage = 2;
+    } else {
+      stage = 1;
     }
 
     return new Response(
       JSON.stringify({
         success: true,
         trackingCode: code,
-        statusName: statusValue || "Default",
+        statusName: statusName || "Default",
         stage,
       }),
       {

@@ -126,8 +126,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           throw new Error("No redirect link returned from payment gateway");
         }
       } catch (err: any) {
-        console.error("BOG connection failed, redirecting directly to success for mock validation:", err);
-        window.location.href = `${window.location.origin}/?payment=success`;
+        console.error("Card Payment initiation failed:", err);
+        alert(
+          language === "ka"
+            ? `ბარათით გადახდის ინიციალიზაცია ჩაიშალა: ${err.message}`
+            : `Card payment initiation failed: ${err.message}`
+        );
+      } finally {
+        setIsSubmitting(false);
       }
     }
   };

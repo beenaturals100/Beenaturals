@@ -4,12 +4,14 @@ import { useCart } from "../context/CartContext";
 interface CashSuccessModalProps {
   isOpen: boolean;
   orderId: string;
+  trackingCode: string;
   onClose: () => void;
 }
 
 export const CashSuccessModal: React.FC<CashSuccessModalProps> = ({
   isOpen,
   orderId,
+  trackingCode,
   onClose,
 }) => {
   const { language } = useCart();
@@ -30,9 +32,24 @@ export const CashSuccessModal: React.FC<CashSuccessModalProps> = ({
         <h3 className="text-xl font-bold text-stone-900 mb-2">
           {language === "ka" ? "შეკვეთა მიღებულია!" : "Order Received!"}
         </h3>
-        <p className="text-sm text-stone-500 font-mono mb-4">
-          {language === "ka" ? "კოდი" : "Code"}: #{orderId}
+        <p className="text-xs text-stone-400 font-mono mb-2">
+          {language === "ka" ? "იდენტიფიკატორი" : "ID"}: #{orderId}
         </p>
+
+        {/* Highlighted Tracking Code Card */}
+        <div className="bg-gradient-to-r from-amber-50 to-amber-100/50 border border-honey-200 rounded-2xl p-4 my-4 animate-scale-in">
+          <p className="text-[10px] uppercase font-extrabold text-stone-500 tracking-wider">
+            {language === "ka" ? "თვალის დევნების კოდი" : "Order Tracking Code"}
+          </p>
+          <p className="text-3xl font-black text-honey-900 mt-1 tracking-widest font-mono">
+            {trackingCode}
+          </p>
+          <p className="text-[11px] text-stone-600 mt-1">
+            {language === "ka" 
+              ? "შეინახეთ ეს კოდი შეკვეთის სტატუსის შესამოწმებლად" 
+              : "Save this code to check your order status"}
+          </p>
+        </div>
 
         <div className="text-stone-700 text-sm leading-relaxed mb-6 space-y-3">
           <p>
@@ -67,12 +84,14 @@ export const CashSuccessModal: React.FC<CashSuccessModalProps> = ({
 interface CardSuccessModalProps {
   isOpen: boolean;
   orderId?: string;
+  trackingCode: string;
   onClose: () => void;
 }
 
 export const CardSuccessModal: React.FC<CardSuccessModalProps> = ({
   isOpen,
   orderId,
+  trackingCode,
   onClose,
 }) => {
   const { language } = useCart();
@@ -94,10 +113,26 @@ export const CardSuccessModal: React.FC<CardSuccessModalProps> = ({
           {language === "ka" ? "გადახდა წარმატებულია!" : "Payment Successful!"}
         </h3>
         {orderId && (
-          <p className="text-sm text-stone-500 font-mono mb-4">
-            {language === "ka" ? "შეკვეთის კოდი" : "Order Code"}: #{orderId}
+          <p className="text-xs text-stone-400 font-mono mb-2">
+            {language === "ka" ? "იდენტიფიკატორი" : "ID"}: #{orderId}
           </p>
         )}
+
+        {/* Highlighted Tracking Code Card */}
+        <div className="bg-gradient-to-r from-amber-50 to-amber-100/50 border border-honey-200 rounded-2xl p-4 my-4 animate-scale-in">
+          <p className="text-[10px] uppercase font-extrabold text-stone-500 tracking-wider">
+            {language === "ka" ? "თვალის დევნების კოდი" : "Order Tracking Code"}
+          </p>
+          <p className="text-3xl font-black text-honey-900 mt-1 tracking-widest font-mono">
+            {trackingCode}
+          </p>
+          <p className="text-[11px] text-stone-600 mt-1">
+            {language === "ka" 
+              ? "შეინახეთ ეს კოდი შეკვეთის სტატუსის შესამოწმებლად" 
+              : "Save this code to check your order status"}
+          </p>
+        </div>
+
         <p className="text-stone-650 text-sm leading-relaxed mb-6">
           {language === "ka"
             ? "თქვენი ბარათით გადახდა წარმატებით დასრულდა. შეკვეთა გადაცემულია კურიერისთვის და მალე დაგიკავშირდებით!"

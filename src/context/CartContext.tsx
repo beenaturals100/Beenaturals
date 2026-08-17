@@ -64,6 +64,8 @@ interface CartContextType {
   cartTotalSum: number;
   language: "ka" | "en";
   setLanguage: (lang: "ka" | "en") => void;
+  activeTab: "catalog" | "tracking";
+  setActiveTab: (tab: "catalog" | "tracking") => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -76,6 +78,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [language, setLanguage] = useState<"ka" | "en">("ka");
+  const [activeTab, setActiveTab] = useState<"catalog" | "tracking">("catalog");
 
   useEffect(() => {
     localStorage.setItem("beenaturals_cart", JSON.stringify(cart));
@@ -152,6 +155,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         cartTotalSum,
         language,
         setLanguage,
+        activeTab,
+        setActiveTab,
       }}
     >
       {children}

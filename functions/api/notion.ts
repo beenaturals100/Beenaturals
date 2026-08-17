@@ -12,12 +12,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     // Fallback/Mock Mode if API key is not provided
     if (!apiKey) {
       console.warn("NOTION_API_KEY is not configured. Returning mock success response.");
+      const mockTrackingCode = Math.floor(1000 + Math.random() * 9000);
       return new Response(
         JSON.stringify({
           success: true,
           mode: "mock",
           message: "Mock Notion record created successfully.",
           orderId: data.orderId,
+          trackingCode: mockTrackingCode,
         }),
         {
           status: 200,
@@ -30,6 +32,64 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const itemsSummary = items
       .map((item: any) => `${item.name} (${item.quantity}x)`)
       .join(", ");
+
+    // A. Query database to find the latest tracking code and increment it
+    let trackingCode = 1001;
+    try {
+      const queryRes = await fetch(`https://api.notion.com/v1/databases/${dbId}/query`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Notion-Version": "2022-06-28",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          page_size: 100,
+        }),
+      });
+
+      if (queryRes.ok) {
+        const queryData: any = await queryRes.json();
+        const results = queryData.results || [];
+        let maxVal = 1000;
+        for (const page of results) {
+          const props = page.properties || {};
+          let val = 0;
+          // Check for a Tracking Code column
+          const trackKey = Object.keys(props).find(
+            (k) =>
+              k.toLowerCase().replace(/[\s_-]/g, "") === "trackingcode" ||
+              k.toLowerCase().replace(/[\s_-]/g, "") === "tracking" ||
+              k.toLowerCase().replace(/[\s_-]/g, "") === "code"
+          );
+          if (trackKey) {
+            const p = props[trackKey];
+            if (p.type === "number") {
+              val = p.number || 0;
+            } else if (p.type === "rich_text") {
+              const txt = p.rich_text?.[0]?.text?.content || "";
+              val = parseInt(txt) || 0;
+            }
+          } else {
+            // Check in title
+            const titleKey = Object.keys(props).find((k) => props[k].type === "title");
+            if (titleKey) {
+              const titleText = props[titleKey].title?.[0]?.text?.content || "";
+              const match = titleText.match(/\b(1\d{3}|[2-9]\d{3})\b/);
+              if (match) {
+                val = parseInt(match[0]) || 0;
+              }
+            }
+          }
+          if (val > maxVal && val < 10000) {
+            maxVal = val;
+          }
+        }
+        trackingCode = maxVal + 1;
+      }
+    } catch (err) {
+      console.error("Error querying latest tracking code from Notion:", err);
+    }
 
     // 1. Fetch Database schema to see what columns exist
     const dbSchemaRes = await fetch(`https://api.notion.com/v1/databases/${dbId}`, {
@@ -68,7 +128,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       title: [
         {
           text: {
-            content: `Order #${orderId}`,
+            content: `Order #${trackingCode} (BEE-${orderId.slice(-6)})`,
           },
         },
       ],
@@ -109,7 +169,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     if (totalKey) {
       if (dbProperties[totalKey]?.type === "number") {
         properties[totalKey] = { number: total };
-      } else if (dbProperties[totalKey]?.type === "rich_text") {
+      } else if (totalKey && dbProperties[totalKey]?.type === "rich_text") {
         properties[totalKey] = { rich_text: [{ text: { content: `${total} GEL` } }] };
       }
     }
@@ -121,6 +181,16 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         properties[paymentKey] = { select: { name: paymentMethod } };
       } else if (type === "rich_text") {
         properties[paymentKey] = { rich_text: [{ text: { content: paymentMethod } }] };
+      }
+    }
+
+    // Set Tracking Code property
+    const trackingKey = findPropKey("trackingcode") || findPropKey("tracking") || findPropKey("code");
+    if (trackingKey) {
+      if (dbProperties[trackingKey]?.type === "number") {
+        properties[trackingKey] = { number: trackingCode };
+      } else if (dbProperties[trackingKey]?.type === "rich_text") {
+        properties[trackingKey] = { rich_text: [{ text: { content: String(trackingCode) } }] };
       }
     }
 
@@ -138,7 +208,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }),
     });
 
-    const createData = await createRes.json();
+    const _createData = await createRes.json();
     if (!createRes.ok) {
       // If schema mapping failed, attempt absolute minimum fallback (just Title)
       console.warn("Detailed schema mapping failed. Attempting minimum fallback title-only record.");
@@ -156,7 +226,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
               title: [
                 {
                   text: {
-                    content: `Order #${orderId} - ${customer.firstName} - ${total} GEL - ${itemsSummary}`,
+                    content: `Order #${trackingCode} - ${customer.firstName} - ${total} GEL - ${itemsSummary}`,
                   },
                 },
               ],
@@ -171,7 +241,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }
     }
 
-    return new Response(JSON.stringify({ success: true, message: "Order logged in Notion" }), {
+    return new Response(JSON.stringify({ success: true, message: "Order logged in Notion", trackingCode }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });

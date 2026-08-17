@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { CartProvider, useCart } from "./context/CartContext";
 import { Header } from "./components/Header";
 import { ProductCatalog } from "./components/ProductCatalog";
+import { OrderTracking } from "./components/OrderTracking";
 import { CartDrawer } from "./components/CartDrawer";
 import { CheckoutModal } from "./components/CheckoutModal";
 import {
@@ -11,8 +12,9 @@ import {
 } from "./components/StatusModals";
 
 const AppContent: React.FC = () => {
-  const { clearCart, language } = useCart();
+  const { clearCart, language, activeTab } = useCart();
   const [successOrderId, setSuccessOrderId] = useState<string | null>(null);
+  const [successTrackingCode, setSuccessTrackingCode] = useState<string | null>(null);
   const [isCashSuccessOpen, setIsCashSuccessOpen] = useState(false);
   const [isCardSuccessOpen, setIsCardSuccessOpen] = useState(false);
   const [isCardFailureOpen, setIsCardFailureOpen] = useState(false);
@@ -34,16 +36,24 @@ const AppContent: React.FC = () => {
     const pendingOrderStr = localStorage.getItem("beenaturals_pending_order");
     
     if (pendingOrderStr) {
+      let trackingCode = String(Math.floor(1000 + Math.random() * 9000));
       try {
         const orderData = JSON.parse(pendingOrderStr);
         setSuccessOrderId(orderData.orderId);
 
         // 1. Log order to Notion database
-        await fetch("/api/notion", {
+        const notionRes = await fetch("/api/notion", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(orderData),
         });
+        
+        if (notionRes.ok) {
+          const notionData = await notionRes.json();
+          if (notionData.trackingCode) {
+            trackingCode = String(notionData.trackingCode);
+          }
+        }
 
         // 2. Send email notification via Resend
         await fetch("/api/resend", {
@@ -57,6 +67,7 @@ const AppContent: React.FC = () => {
       } catch (err) {
         console.error("Error finalizing card order:", err);
       }
+      setSuccessTrackingCode(trackingCode);
     }
 
     setIsProcessingCardSuccess(false);
@@ -74,8 +85,9 @@ const AppContent: React.FC = () => {
     window.history.pushState({ path: newUrl }, "", newUrl);
   };
 
-  const handleCashOrderSuccess = (orderId: string) => {
+  const handleCashOrderSuccess = (orderId: string, trackingCode: string) => {
     setSuccessOrderId(orderId);
+    setSuccessTrackingCode(trackingCode);
     setIsCashSuccessOpen(true);
   };
 
@@ -84,29 +96,31 @@ const AppContent: React.FC = () => {
       <Header />
 
       {/* Hero Banner Section */}
-      <section className="relative overflow-hidden py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-amber-100/50 to-transparent animate-fade-in">
-        <div className="max-w-7xl mx-auto text-center relative z-10">
-          <span className="text-honey-700 font-sans text-sm font-bold uppercase tracking-wider bg-honey-100/80 px-4 py-1.5 rounded-full border border-honey-200/50">
-            {language === "ka" ? "🐝 100% ნატურალური და ქართული" : "🐝 100% Natural & Georgian"}
-          </span>
-          <h2 className="text-4xl sm:text-6xl font-serif font-extrabold text-stone-900 mt-6 mb-6 leading-tight">
-            {language === "ka" ? "აღმოაჩინე ნამდვილი თაფლის გემო" : "Discover the Taste of Real Honey"}
-          </h2>
-          <p className="max-w-2xl mx-auto text-stone-650 text-base sm:text-lg leading-relaxed mb-8">
-            {language === "ka"
-              ? "Beenaturals გთავაზობთ საქართველოში მოპოვებულ, სრულიად ნატურალურ და ნედლ თაფლს ეკოლოგიურად სუფთა რეგიონებიდან."
-              : "Beenaturals offers raw, completely natural honey harvested from ecologically clean regions of Georgia."}
-          </p>
-          <div className="flex justify-center">
-            <a
-              href="#catalog"
-              className="px-8 py-4 bg-gradient-to-r from-honey-500 to-honey-600 hover:from-honey-600 hover:to-honey-700 text-white font-sans font-bold rounded-xl shadow-lg hover:shadow-xl hover:translate-y-[-1px] transition-all cursor-pointer text-sm sm:text-base"
-            >
-              {language === "ka" ? "შეუკვეთე ახლავე" : "Order Now"}
-            </a>
+      {activeTab === "catalog" && (
+        <section className="relative overflow-hidden py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-amber-100/50 to-transparent animate-fade-in">
+          <div className="max-w-7xl mx-auto text-center relative z-10">
+            <span className="text-honey-700 font-sans text-sm font-bold uppercase tracking-wider bg-honey-100/80 px-4 py-1.5 rounded-full border border-honey-200/50">
+              {language === "ka" ? "🐝 100% ნატურალური და ქართული" : "🐝 100% Natural & Georgian"}
+            </span>
+            <h2 className="text-4xl sm:text-6xl font-serif font-extrabold text-stone-900 mt-6 mb-6 leading-tight">
+              {language === "ka" ? "აღმოაჩინე ნამდვილი თაფლის გემო" : "Discover the Taste of Real Honey"}
+            </h2>
+            <p className="max-w-2xl mx-auto text-stone-650 text-base sm:text-lg leading-relaxed mb-8">
+              {language === "ka"
+                ? "Beenaturals გთავაზობთ საქართველოში მოპოვებულ, სრულიად ნატურალურ და ნედლ თაფლს ეკოლოგიურად სუფთა რეგიონებიდან."
+                : "Beenaturals offers raw, completely natural honey harvested from ecologically clean regions of Georgia."}
+            </p>
+            <div className="flex justify-center">
+              <a
+                href="#catalog"
+                className="px-8 py-4 bg-gradient-to-r from-honey-500 to-honey-600 hover:from-honey-600 hover:to-honey-700 text-white font-sans font-bold rounded-xl shadow-lg hover:shadow-xl hover:translate-y-[-1px] transition-all cursor-pointer text-sm sm:text-base"
+              >
+                {language === "ka" ? "შეუკვეთე ახლავე" : "Order Now"}
+              </a>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Card Processing Loader Overlay */}
       {isProcessingCardSuccess && (
@@ -123,76 +137,85 @@ const AppContent: React.FC = () => {
         </div>
       )}
 
-      {/* Main Catalog Section */}
-      <main id="catalog" className="flex-grow">
-        <ProductCatalog />
+      {/* Main Content Area */}
+      <main className="flex-grow">
+        {activeTab === "catalog" ? (
+          <>
+            {/* Main Catalog Section */}
+            <div id="catalog">
+              <ProductCatalog />
+            </div>
+
+            {/* Gallery Section */}
+            <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-amber-100/30">
+              <div className="text-center mb-10">
+                <span className="text-honey-600 font-sans font-semibold tracking-widest text-xs uppercase bg-honey-50 px-3 py-1 rounded-full border border-honey-100/60">
+                  {language === "ka" ? "ჩვენი საფუტკრე" : "Our Apiary"}
+                </span>
+                <h3 className="text-3xl font-serif font-extrabold text-stone-900 mt-2">
+                  {language === "ka" ? "ფოტოები" : "Gallery"}
+                </h3>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 justify-center">
+                <div className="relative overflow-hidden rounded-2xl aspect-square shadow-sm hover:shadow-md transition-all duration-300 group">
+                  <img
+                    src="/beekeeper.jpg"
+                    alt={language === "ka" ? "მეფუტკრე" : "Beekeeper"}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent flex items-end p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <span className="text-white text-sm font-bold font-sans">
+                      {language === "ka" ? "მეფუტკრე" : "Beekeeper"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="relative overflow-hidden rounded-2xl aspect-square shadow-sm hover:shadow-md transition-all duration-300 group">
+                  <img
+                    src="/bees_hive.jpg"
+                    alt={language === "ka" ? "სკა და ფუტკრები" : "Hives and bees"}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent flex items-end p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <span className="text-white text-sm font-bold font-sans">
+                      {language === "ka" ? "სკა და ფუტკრები" : "Hives and Bees"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="relative overflow-hidden rounded-2xl aspect-square shadow-sm hover:shadow-md transition-all duration-300 group">
+                  <img
+                    src="/gallery3.jpg"
+                    alt={language === "ka" ? "სკა" : "Hive"}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent flex items-end p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <span className="text-white text-sm font-bold font-sans">
+                      {language === "ka" ? "სკა" : "Hive Close-up"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="relative overflow-hidden rounded-2xl aspect-square shadow-sm hover:shadow-md transition-all duration-300 group">
+                  <img
+                    src="/gallery4.jpg"
+                    alt={language === "ka" ? "ფუტკარი ფიჭაზე" : "Beekeeper inspection"}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent flex items-end p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <span className="text-white text-sm font-bold font-sans">
+                      {language === "ka" ? "ფუტკარი ფიჭაზე" : "Beekeeper Inspection"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </>
+        ) : (
+          <OrderTracking />
+        )}
       </main>
-
-      {/* Gallery Section */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-amber-100/30">
-        <div className="text-center mb-10">
-          <span className="text-honey-600 font-sans font-semibold tracking-widest text-xs uppercase bg-honey-50 px-3 py-1 rounded-full border border-honey-100/60">
-            {language === "ka" ? "ჩვენი საფუტკრე" : "Our Apiary"}
-          </span>
-          <h3 className="text-3xl font-serif font-extrabold text-stone-900 mt-2">
-            {language === "ka" ? "ფოტოები" : "Gallery"}
-          </h3>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 justify-center">
-          <div className="relative overflow-hidden rounded-2xl aspect-square shadow-sm hover:shadow-md transition-all duration-300 group">
-            <img
-              src="/beekeeper.jpg"
-              alt={language === "ka" ? "მეფუტკრე" : "Beekeeper"}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent flex items-end p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-              <span className="text-white text-sm font-bold font-sans">
-                {language === "ka" ? "მეფუტკრე" : "Beekeeper"}
-              </span>
-            </div>
-          </div>
-
-          <div className="relative overflow-hidden rounded-2xl aspect-square shadow-sm hover:shadow-md transition-all duration-300 group">
-            <img
-              src="/bees_hive.jpg"
-              alt={language === "ka" ? "სკა და ფუტკრები" : "Hives and bees"}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent flex items-end p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-              <span className="text-white text-sm font-bold font-sans">
-                {language === "ka" ? "სკა და ფუტკრები" : "Hives and Bees"}
-              </span>
-            </div>
-          </div>
-
-          <div className="relative overflow-hidden rounded-2xl aspect-square shadow-sm hover:shadow-md transition-all duration-300 group">
-            <img
-              src="/gallery3.jpg"
-              alt={language === "ka" ? "სკა" : "Hive"}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent flex items-end p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-              <span className="text-white text-sm font-bold font-sans">
-                {language === "ka" ? "სკა" : "Hive Close-up"}
-              </span>
-            </div>
-          </div>
-
-          <div className="relative overflow-hidden rounded-2xl aspect-square shadow-sm hover:shadow-md transition-all duration-300 group">
-            <img
-              src="/gallery4.jpg"
-              alt={language === "ka" ? "ფუტკარი ფიჭაზე" : "Beekeeper inspection"}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent flex items-end p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-              <span className="text-white text-sm font-bold font-sans">
-                {language === "ka" ? "ფუტკარი ფიჭაზე" : "Beekeeper Inspection"}
-              </span>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* Trust Badges / Benefits Section */}
       <section className="py-16 bg-white border-y border-amber-100/50">
@@ -275,12 +298,14 @@ const AppContent: React.FC = () => {
       <CashSuccessModal
         isOpen={isCashSuccessOpen}
         orderId={successOrderId || ""}
+        trackingCode={successTrackingCode || ""}
         onClose={() => setIsCashSuccessOpen(false)}
       />
 
       <CardSuccessModal
         isOpen={isCardSuccessOpen}
         orderId={successOrderId || ""}
+        trackingCode={successTrackingCode || ""}
         onClose={() => setIsCardSuccessOpen(false)}
       />
 

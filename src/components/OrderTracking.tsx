@@ -24,6 +24,15 @@ export const OrderTracking: React.FC = () => {
   const [currentStage, setCurrentStage] = useState<number | null>(null);
   const [searchedCode, setSearchedCode] = useState<string | null>(null);
   const [statusName, setStatusName] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyCode = () => {
+    if (searchedCode) {
+      navigator.clipboard.writeText(searchedCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   const handleTrack = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -141,11 +150,23 @@ export const OrderTracking: React.FC = () => {
         {currentStage !== null && !loading && !error && (
           <div className="bg-white rounded-3xl p-6 sm:p-8 border border-amber-100 shadow-xl animate-scale-in">
             <div className="flex items-center justify-between border-b border-stone-100 pb-4 mb-6">
-              <div>
-                <span className="text-[10px] uppercase font-bold text-stone-400 tracking-wider">
-                  {language === "ka" ? "შეკვეთის კოდი" : "Order Tracking Code"}
+              <div 
+                onClick={handleCopyCode}
+                className="cursor-pointer group flex flex-col"
+                title={language === "ka" ? "დააკოპირეთ კოდი" : "Copy Code"}
+              >
+                <span className="text-[10px] uppercase font-bold text-stone-400 tracking-wider flex items-center space-x-1.5">
+                  <span>{language === "ka" ? "შეკვეთის კოდი" : "Order Tracking Code"}</span>
+                  <svg className="w-3 h-3 text-stone-400 group-hover:text-honey-600 transition-colors" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                  </svg>
+                  {copied && (
+                    <span className="text-[9px] text-emerald-600 font-bold ml-1 animate-pulse">
+                      {language === "ka" ? "დაკოპირდა!" : "Copied!"}
+                    </span>
+                  )}
                 </span>
-                <h4 className="text-xl font-bold text-stone-900 font-mono tracking-wide mt-0.5">
+                <h4 className="text-xl font-bold text-stone-900 font-mono tracking-wide mt-0.5 group-hover:text-honey-700 transition-colors select-none">
                   #{searchedCode}
                 </h4>
               </div>

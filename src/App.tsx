@@ -242,8 +242,8 @@ const AppContent: React.FC = () => {
             </h4>
             <p className="text-sm text-stone-500">
               {language === "ka"
-                ? "ყოველგვარი დანამატებისა და შაქრის სიროფის გარეშე, ნედლი და სუფთა."
-                : "Raw and pure honey, free of any additives or sugar syrup."}
+                ? "ყოველგვარი დანამატების გარეშე."
+                : "Raw and pure honey, free of any additives."}
             </p>
           </div>
           <div className="flex flex-col items-center text-center p-4">
@@ -255,8 +255,8 @@ const AppContent: React.FC = () => {
             </h4>
             <p className="text-sm text-stone-500">
               {language === "ka"
-                ? "მიწოდება მთელ თბილისსა და საქართველოს რეგიონებში მოკლე ვადებში."
-                : "Swift delivery across Tbilisi and other regions of Georgia."}
+                ? "მიწოდება მთელი საქართველოს მასშტაბით უმოკლეს დროში."
+                : "Swift delivery across Georgia in the shortest time."}
             </p>
           </div>
         </div>
@@ -282,7 +282,7 @@ const AppContent: React.FC = () => {
             </a>
             <span className="text-stone-700">|</span>
             <span className="text-stone-500">
-              {language === "ka" ? "საკონტაქტო" : "Contact"}: +995 599 00 00 00
+              {language === "ka" ? "საკონტაქტო" : "Contact"}: 558 05 79 75
             </span>
           </div>
         </div>

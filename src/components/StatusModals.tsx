@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useCart } from "../context/CartContext";
 
 interface CashSuccessModalProps {
@@ -15,7 +15,15 @@ export const CashSuccessModal: React.FC<CashSuccessModalProps> = ({
   onClose,
 }) => {
   const { language } = useCart();
+  const [copied, setCopied] = useState(false);
+
   if (!isOpen) return null;
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(trackingCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto font-sans flex items-center justify-center p-4 animate-fade-in">
@@ -37,17 +45,30 @@ export const CashSuccessModal: React.FC<CashSuccessModalProps> = ({
         </p>
 
         {/* Highlighted Tracking Code Card */}
-        <div className="bg-gradient-to-r from-amber-50 to-amber-100/50 border border-honey-200 rounded-2xl p-4 my-4 animate-scale-in">
-          <p className="text-[10px] uppercase font-extrabold text-stone-500 tracking-wider">
-            {language === "ka" ? "თვალის დევნების კოდი" : "Order Tracking Code"}
+        <div 
+          onClick={handleCopy}
+          className="bg-gradient-to-r from-amber-50 to-amber-100/50 border border-honey-200 rounded-2xl p-4 my-4 animate-scale-in cursor-pointer hover:from-amber-100/70 hover:to-amber-200/40 hover:scale-[1.01] active:scale-[0.99] transition-all duration-150 relative group"
+          title={language === "ka" ? "დააკოპირეთ კოდი" : "Copy Code"}
+        >
+          <p className="text-[10px] uppercase font-extrabold text-stone-500 tracking-wider flex items-center justify-center space-x-1.5">
+            <span>{language === "ka" ? "თვალის დევნების კოდი" : "Order Tracking Code"}</span>
+            <svg className="w-3.5 h-3.5 text-stone-400 group-hover:text-honey-600 transition-colors" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+            </svg>
           </p>
-          <p className="text-3xl font-black text-honey-900 mt-1 tracking-widest font-mono">
+          <p className="text-3xl font-black text-honey-900 mt-1 tracking-widest font-mono select-none">
             {trackingCode}
           </p>
-          <p className="text-[11px] text-stone-600 mt-1">
-            {language === "ka" 
-              ? "შეინახეთ ეს კოდი შეკვეთის სტატუსის შესამოწმებლად" 
-              : "Save this code to check your order status"}
+          <p className="text-[11px] text-stone-600 mt-1 font-medium transition-all duration-200">
+            {copied ? (
+              <span className="text-emerald-600 font-bold animate-pulse">
+                {language === "ka" ? "✓ კოდი დაკოპირდა!" : "✓ Code Copied!"}
+              </span>
+            ) : (
+              language === "ka" 
+                ? "დააწკაპუნეთ კოდის დასაკოპირებლად" 
+                : "Click to copy code"
+            )}
           </p>
         </div>
 
@@ -95,7 +116,15 @@ export const CardSuccessModal: React.FC<CardSuccessModalProps> = ({
   onClose,
 }) => {
   const { language } = useCart();
+  const [copied, setCopied] = useState(false);
+
   if (!isOpen) return null;
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(trackingCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto font-sans flex items-center justify-center p-4 animate-fade-in">
@@ -119,17 +148,30 @@ export const CardSuccessModal: React.FC<CardSuccessModalProps> = ({
         )}
 
         {/* Highlighted Tracking Code Card */}
-        <div className="bg-gradient-to-r from-amber-50 to-amber-100/50 border border-honey-200 rounded-2xl p-4 my-4 animate-scale-in">
-          <p className="text-[10px] uppercase font-extrabold text-stone-500 tracking-wider">
-            {language === "ka" ? "თვალის დევნების კოდი" : "Order Tracking Code"}
+        <div 
+          onClick={handleCopy}
+          className="bg-gradient-to-r from-amber-50 to-amber-100/50 border border-honey-200 rounded-2xl p-4 my-4 animate-scale-in cursor-pointer hover:from-amber-100/70 hover:to-amber-200/40 hover:scale-[1.01] active:scale-[0.99] transition-all duration-150 relative group"
+          title={language === "ka" ? "დააკოპირეთ კოდი" : "Copy Code"}
+        >
+          <p className="text-[10px] uppercase font-extrabold text-stone-500 tracking-wider flex items-center justify-center space-x-1.5">
+            <span>{language === "ka" ? "თვალის დევნების კოდი" : "Order Tracking Code"}</span>
+            <svg className="w-3.5 h-3.5 text-stone-400 group-hover:text-honey-600 transition-colors" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+            </svg>
           </p>
-          <p className="text-3xl font-black text-honey-900 mt-1 tracking-widest font-mono">
+          <p className="text-3xl font-black text-honey-900 mt-1 tracking-widest font-mono select-none">
             {trackingCode}
           </p>
-          <p className="text-[11px] text-stone-600 mt-1">
-            {language === "ka" 
-              ? "შეინახეთ ეს კოდი შეკვეთის სტატუსის შესამოწმებლად" 
-              : "Save this code to check your order status"}
+          <p className="text-[11px] text-stone-600 mt-1 font-medium transition-all duration-200">
+            {copied ? (
+              <span className="text-emerald-600 font-bold animate-pulse">
+                {language === "ka" ? "✓ კოდი დაკოპირდა!" : "✓ Code Copied!"}
+              </span>
+            ) : (
+              language === "ka" 
+                ? "დააწკაპუნეთ კოდის დასაკოპირებლად" 
+                : "Click to copy code"
+            )}
           </p>
         </div>
 

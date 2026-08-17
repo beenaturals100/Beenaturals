@@ -187,10 +187,18 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const lowerStatus = statusValue.toLowerCase();
 
     if (
+      statusValue.includes("მიღებულია") ||
+      lowerStatus.includes("received") ||
+      lowerStatus.includes("not started") ||
+      lowerStatus.includes("pending")
+    ) {
+      stage = 0;
+    }
+    if (
+      statusValue.includes("მზად არის") ||
+      lowerStatus.includes("ready") ||
       lowerStatus.includes("in progress") ||
       lowerStatus.includes("doing") ||
-      lowerStatus.includes("მზად") ||
-      lowerStatus.includes("ready") ||
       lowerStatus.includes("prepared") ||
       lowerStatus.includes("pack") ||
       lowerStatus.includes("stage1") ||
@@ -198,15 +206,16 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       lowerStatus.includes("stage_1")
     ) {
       stage = 1;
-    } else if (
-      lowerStatus.includes("done") ||
-      lowerStatus.includes("completed") ||
-      lowerStatus.includes("გაგზავნილი") ||
+    }
+    if (
+      statusValue.includes("გაგზავნილია") ||
       lowerStatus.includes("shipped") ||
       lowerStatus.includes("sent") ||
       lowerStatus.includes("delivered") ||
       lowerStatus.includes("transit") ||
       lowerStatus.includes("კურიერ") ||
+      lowerStatus.includes("done") ||
+      lowerStatus.includes("completed") ||
       lowerStatus.includes("stage2") ||
       lowerStatus.includes("stage 2") ||
       lowerStatus.includes("stage_2")

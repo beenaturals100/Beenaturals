@@ -117,14 +117,19 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           }),
         });
         
-        // Check if the response is JSON before parsing to handle server errors/proxies gracefully
-        const contentType = bogRes.headers.get("content-type");
-        if (!contentType || !contentType.includes("application/json")) {
-          throw new Error(`Server returned a non-JSON response (${contentType || "text/html"}). Status: ${bogRes.status}. Please ensure Wrangler pages dev is running on port 8788, or that your Cloudflare functions are deployed.`);
+        const rawText = await bogRes.text();
+        console.log('HTTP Status:', bogRes.status, 'Raw:', rawText);
+
+        if (!bogRes.ok || rawText.trim().startsWith("<")) {
+          alert('API Error (' + bogRes.status + '): ' + rawText.slice(0, 150));
+          setIsSubmitting(false);
+          return;
         }
 
-        const bogData = await bogRes.json();
-        if (!bogRes.ok || bogData.success === false) throw new Error(bogData.error || "BOG Checkout connection failed");
+        const bogData = JSON.parse(rawText);
+        if (bogData.error) {
+          throw new Error(bogData.error);
+        }
 
         if (bogData.redirectUrl) {
           window.location.href = bogData.redirectUrl;

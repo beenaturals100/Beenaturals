@@ -23,10 +23,12 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const paymentStatus = urlParams.get("payment");
+    const isPathSuccess = window.location.pathname.endsWith("/order-success");
+    const isPathFailure = window.location.pathname.endsWith("/order-fail");
 
-    if (paymentStatus === "success") {
+    if (paymentStatus === "success" || isPathSuccess) {
       handleCardPaymentSuccess();
-    } else if (paymentStatus === "fail") {
+    } else if (paymentStatus === "fail" || isPathFailure) {
       handleCardPaymentFailure();
     }
   }, []);

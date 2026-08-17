@@ -1,45 +1,39 @@
-interface Env {
-  BOG_CLIENT_ID?: string;
-  BOG_SECRET_KEY?: string;
-}
-
-export const onRequestPost: PagesFunction<Env> = async (context) => {
+export const onRequestPost: PagesFunction<{ BOG_CLIENT_ID?: string; BOG_SECRET_KEY?: string }> = async (context) => {
   try {
-    const data = await context.request.json();
-    const { orderId, amount, description } = data;
+    const clientId = context.env.BOG_CLIENT_ID || (typeof process !== "undefined" ? process.env.BOG_CLIENT_ID : undefined);
+    const secretKey = context.env.BOG_SECRET_KEY || (typeof process !== "undefined" ? process.env.BOG_SECRET_KEY : undefined);
 
-    const clientId = context.env.BOG_CLIENT_ID;
-    const secretKey = context.env.BOG_SECRET_KEY;
-
-    // Extract local request origin to construct redirect back URLs
-    const requestUrl = new URL(context.request.url);
-    const origin = requestUrl.origin;
-
-    // If credentials are not configured, return a clear error response instead of throwing a 500
     if (!clientId || !secretKey) {
-      console.warn("BOG credentials not configured. Returning error payload.");
       return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Bank of Georgia credentials (BOG_CLIENT_ID / BOG_SECRET_KEY) are not configured in environment variables. Please check your Cloudflare dashboard configuration.",
-        }),
+        JSON.stringify({ error: "Missing BOG environment secrets in Cloudflare context" }),
         {
-          status: 200,
+          status: 400,
           headers: { "Content-Type": "application/json" },
         }
       );
     }
 
-    // Set BOG Production iPay Endpoints
-    const authUrl = "https://oauth2.bog.ge/oauth2/token";
-    const paymentUrl = "https://ecommerce.ipay.ge/api/v1/checkout/orders";
+    // Parse the incoming request body
+    const requestData: any = await context.request.json();
+    const { amount } = requestData;
 
-    // 1. Authenticate with BOG (OAuth2 Client Credentials)
-    const basicAuth = btoa(`${clientId}:${secretKey}`);
+    // Set BOG Endpoints
+    const authUrl = "https://oauth2.bog.ge/oauth2/token";
+    const orderUrl = "https://ecommerce.ipay.ge/api/v1/checkout/orders";
+
+    // Base64 helper supporting both Node.js and Browser/Cloudflare environments
+    const getBasicAuthHeader = (id: string, secret: string) => {
+      if (typeof Buffer !== "undefined") {
+        return "Basic " + Buffer.from(id + ":" + secret).toString("base64");
+      }
+      return "Basic " + btoa(id + ":" + secret);
+    };
+
+    // 1. Get OAuth2 Token
     const tokenRes = await fetch(authUrl, {
       method: "POST",
       headers: {
-        "Authorization": `Basic ${basicAuth}`,
+        "Authorization": getBasicAuthHeader(clientId, secretKey),
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: "grant_type=client_credentials",
@@ -47,30 +41,25 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     const tokenData: any = await tokenRes.json();
     if (!tokenRes.ok) {
-      throw new Error(tokenData.error_description || tokenData.error || "BOG iPay Auth failed");
+      throw new Error(tokenData.error_description || tokenData.error || "BOG Auth failed");
     }
 
     const accessToken = tokenData.access_token;
 
-    // 2. Create BOG iPay Order
+    // 2. Create iPay Order
     const checkoutPayload = {
       intent: "CAPTURE",
       items: [
         {
           amount: Number(amount).toFixed(2),
-          description: description || `Beenaturals Honey Order #${orderId}`,
+          description: "Beenaturals Products",
           quantity: "1",
-          product_id: orderId,
         }
       ],
-      locale: "ka",
-      shop_order_id: orderId,
-      redirect_url: `${origin}/?payment=success`,
-      show_shop_order_id_on_extract: true,
-      capture_method: "AUTOMATIC",
+      redirect_url: "https://beenaturals-0ku.pages.dev/order-success",
     };
 
-    const preOrderRes = await fetch(paymentUrl, {
+    const orderRes = await fetch(orderUrl, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${accessToken}`,
@@ -79,33 +68,37 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       body: JSON.stringify(checkoutPayload),
     });
 
-    const preOrderData: any = await preOrderRes.json();
-    console.log("BOG Order creation response:", JSON.stringify(preOrderData));
+    const orderData: any = await orderRes.json();
+    console.log("BOG Order creation response:", JSON.stringify(orderData));
 
-    if (!preOrderRes.ok) {
-      const errorMsg = preOrderData.message || preOrderData.error || preOrderData.error_description || JSON.stringify(preOrderData) || `HTTP status: ${preOrderRes.statusText}`;
-      throw new Error(`BOG API Order creation failed: ${errorMsg}`);
+    if (!orderRes.ok) {
+      const errorMsg = orderData.message || orderData.error || orderData.error_description || JSON.stringify(orderData);
+      throw new Error(`BOG iPay Order failed: ${errorMsg}`);
     }
 
-    // 3. Extract the redirect link dynamically checking all standard BOG response structures
-    const redirectUrl = preOrderData.redirect_url ||
-      preOrderData._links?.redirect?.href ||
-      preOrderData._links?.details?.href ||
-      (Array.isArray(preOrderData.links) ? preOrderData.links.find((l: any) => l.rel === 'redirect')?.href : undefined);
+    // 3. Extract redirect URL
+    const redirectUrl = orderData._links?.redirect?.href || 
+                        orderData._links?.details?.href || 
+                        orderData.redirect_url;
 
     if (!redirectUrl) {
-      throw new Error(`No redirect link found in BOG response. Response: ${JSON.stringify(preOrderData)}`);
+      throw new Error("No redirect link returned from payment gateway");
     }
 
-    return new Response(JSON.stringify({ success: true, redirectUrl, redirect_url: redirectUrl }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
-  } catch (error: any) {
-    console.error("BOG iPay Checkout endpoint error:", error);
-    return new Response(JSON.stringify({ success: false, error: error.message }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ redirectUrl }),
+      {
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+  } catch (err: any) {
+    console.error("BOG Checkout function error:", err);
+    return new Response(
+      JSON.stringify({ error: err.message || "Unknown error" }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
 };

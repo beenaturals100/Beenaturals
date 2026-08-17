@@ -194,6 +194,17 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }
     }
 
+    // Set Payment Status property
+    const paymentStatusValue = paymentMethod === "card" ? "გადახდილი" : "გადაუხდელი";
+    const paymentStatusKey = findPropKey("paymentstatus") || findPropKey("payment_status") || "Payment Status";
+    if (paymentStatusKey) {
+      if (dbProperties[paymentStatusKey]?.type === "select" || !dbProperties[paymentStatusKey]) {
+        properties[paymentStatusKey] = { select: { name: paymentStatusValue } };
+      } else if (dbProperties[paymentStatusKey]?.type === "rich_text") {
+        properties[paymentStatusKey] = { rich_text: [{ text: { content: paymentStatusValue } }] };
+      }
+    }
+
     // 3. Make the creation request to Notion API
     const createRes = await fetch("https://api.notion.com/v1/pages", {
       method: "POST",

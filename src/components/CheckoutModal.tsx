@@ -107,7 +107,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       try {
         localStorage.setItem("beenaturals_pending_order", JSON.stringify(orderData));
 
-        const bogRes = await fetch("/api/bog-checkout", {
+        const bogRes = await fetch("/api/checkout", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -126,10 +126,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           throw new Error("No redirect link returned from payment gateway");
         }
       } catch (err: any) {
-        console.error("BOG connection failed, triggering fallback checkout:", err);
-        setTimeout(() => {
-          window.location.href = `${window.location.origin}/?payment=success`;
-        }, 1000);
+        console.error("BOG connection failed, triggering simulator fallback:", err);
+        window.location.href = `${window.location.origin}/pay-simulator.html?orderId=${orderId}&amount=${finalTotal}`;
       }
     }
   };

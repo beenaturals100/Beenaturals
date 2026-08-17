@@ -107,32 +107,27 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       try {
         localStorage.setItem("beenaturals_pending_order", JSON.stringify(orderData));
 
-        const bogRes = await fetch("/api/checkout", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            orderId,
-            amount: finalTotal,
-            description: `Beenaturals Honey Order #${orderId}`,
-          }),
-        });
+        const res = await fetch('/api/checkout', { method: 'POST' });
         
-        const rawText = await bogRes.text();
-        console.log('HTTP Status:', bogRes.status, 'Raw:', rawText);
-
-        if (!bogRes.ok || rawText.trim().startsWith("<")) {
-          alert('API Error (' + bogRes.status + '): ' + rawText.slice(0, 150));
-          setIsSubmitting(false);
-          return;
+        let data: any;
+        try {
+          const rawText = await res.text();
+          data = JSON.parse(rawText);
+        } catch {
+          throw new Error(`Non-JSON response received (Status ${res.status})`);
         }
 
-        const bogData = JSON.parse(rawText);
-        if (bogData.error) {
-          throw new Error(bogData.error);
-        }
+        if (!res.ok) throw new Error(data.error || 'Checkout failed');
 
-        if (bogData.redirectUrl) {
-          window.location.href = bogData.redirectUrl;
+        if (data.redirectUrl) {
+          window.location.href = data.redirectUrl;
+        } else if (data.success && data.tokenData) {
+          alert(
+            language === "ka"
+              ? "BOG OAuth2 ტოკენი წარმატებით მიღებულია (ტესტირების რეჟიმი)"
+              : "BOG OAuth2 Token successfully retrieved (Test Mode)"
+          );
+          console.log("Token Data:", data.tokenData);
         } else {
           throw new Error("No redirect link returned from payment gateway");
         }

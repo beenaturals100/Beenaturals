@@ -15,14 +15,25 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const requestUrl = new URL(context.request.url);
     const origin = requestUrl.origin;
 
+    // If credentials are not configured, perform a clean direct redirect to success page (mock mode)
+    // without rendering any custom payment simulator components.
     if (!clientId || !secretKey) {
-      console.warn("BOG payment credentials are not configured. Throwing configuration error.");
-      throw new Error("Bank of Georgia credentials (BOG_CLIENT_ID / BOG_SECRET_KEY) are not configured in environment variables.");
+      console.warn("BOG credentials not configured. Returning direct redirect to success page for local mock.");
+      return new Response(
+        JSON.stringify({
+          success: true,
+          redirectUrl: `${origin}/?payment=success`,
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
     }
 
-    // Set BOG Production Endpoints
+    // Set BOG Production iPay Endpoints
     const authUrl = "https://oauth2.bog.ge/oauth2/token";
-    const paymentUrl = "https://api.bog.ge/payments/v1/pre-orders";
+    const paymentUrl = "https://ecommerce.ipay.ge/api/v1/checkout/orders";
 
     // 1. Authenticate with BOG (OAuth2 Client Credentials)
     const basicAuth = btoa(`${clientId}:${secretKey}`);
@@ -37,22 +48,27 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     const tokenData: any = await tokenRes.json();
     if (!tokenRes.ok) {
-      throw new Error(tokenData.error_description || tokenData.error || "BOG Auth failed");
+      throw new Error(tokenData.error_description || tokenData.error || "BOG iPay Auth failed");
     }
 
     const accessToken = tokenData.access_token;
 
-    // 2. Create BOG Pre-order
-    const preOrderPayload = {
-      callback_url: `${origin}/api/bog-callback`,
-      description: description || "Beenaturals Honey Order",
-      external_order_id: orderId,
-      purchase_units: {
-        currency: "GEL",
-        total_amount: Number(amount),
-      },
-      ttl: 15,
+    // 2. Create BOG iPay Order
+    const checkoutPayload = {
+      intent: "CAPTURE",
+      items: [
+        {
+          amount: Number(amount).toFixed(2),
+          description: description || `Beenaturals Honey Order #${orderId}`,
+          quantity: "1",
+          product_id: orderId,
+        }
+      ],
+      locale: "ka",
+      shop_order_id: orderId,
       redirect_url: `${origin}/?payment=success`,
+      show_shop_order_id_on_extract: true,
+      capture_method: "AUTOMATIC",
     };
 
     const preOrderRes = await fetch(paymentUrl, {
@@ -60,18 +76,32 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       headers: {
         "Authorization": `Bearer ${accessToken}`,
         "Content-Type": "application/json",
-        "Accept-Language": "ka", // Force Georgian language interface
       },
-      body: JSON.stringify(preOrderPayload),
+      body: JSON.stringify(checkoutPayload),
     });
 
     const preOrderData: any = await preOrderRes.json();
     if (!preOrderRes.ok) {
-      throw new Error(preOrderData.message || preOrderData.error || "BOG Pre-order creation failed");
+      throw new Error(preOrderData.message || preOrderData.error || "BOG iPay Order creation failed");
     }
 
-    // 3. Return payment link
-    const redirectUrl = preOrderData._links?.payment_link?.href;
+    // 3. Extract redirect URL from response links array, redirect_url field, or payment_hash
+    let redirectUrl = "";
+    if (preOrderData.redirect_url) {
+      redirectUrl = preOrderData.redirect_url;
+    } else if (Array.isArray(preOrderData.links)) {
+      const redirectLink = preOrderData.links.find(
+        (l: any) => l.rel === "redirect" || (l.method === "GET" && l.href?.includes("payment_hash="))
+      );
+      if (redirectLink) {
+        redirectUrl = redirectLink.href;
+      }
+    }
+
+    if (!redirectUrl && preOrderData.payment_hash) {
+      redirectUrl = `https://ipay.ge/pay?payment_hash=${preOrderData.payment_hash}`;
+    }
+
     if (!redirectUrl) {
       throw new Error("No redirect link found in BOG response");
     }
@@ -81,7 +111,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       headers: { "Content-Type": "application/json" },
     });
   } catch (error: any) {
-    console.error("BOG Checkout endpoint error:", error);
+    console.error("BOG iPay Checkout endpoint error:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { "Content-Type": "application/json" },

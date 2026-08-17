@@ -124,7 +124,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         }
 
         const bogData = await bogRes.json();
-        if (!bogRes.ok) throw new Error(bogData.error || "BOG Checkout connection failed");
+        if (!bogRes.ok || bogData.success === false) throw new Error(bogData.error || "BOG Checkout connection failed");
 
         if (bogData.redirectUrl) {
           window.location.href = bogData.redirectUrl;

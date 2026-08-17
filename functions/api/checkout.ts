@@ -15,14 +15,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const requestUrl = new URL(context.request.url);
     const origin = requestUrl.origin;
 
-    // If credentials are not configured, perform a clean direct redirect to success page (mock mode)
-    // without rendering any custom payment simulator components.
+    // If credentials are not configured, return a clear error response instead of throwing a 500
     if (!clientId || !secretKey) {
-      console.warn("BOG credentials not configured. Returning direct redirect to success page for local mock.");
+      console.warn("BOG credentials not configured. Returning error payload.");
       return new Response(
         JSON.stringify({
-          success: true,
-          redirectUrl: `${origin}/?payment=success`,
+          success: false,
+          error: "Bank of Georgia credentials (BOG_CLIENT_ID / BOG_SECRET_KEY) are not configured in environment variables. Please check your Cloudflare dashboard configuration.",
         }),
         {
           status: 200,
@@ -112,8 +111,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     });
   } catch (error: any) {
     console.error("BOG iPay Checkout endpoint error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
+    return new Response(JSON.stringify({ success: false, error: error.message }), {
+      status: 200,
       headers: { "Content-Type": "application/json" },
     });
   }

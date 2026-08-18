@@ -18,7 +18,6 @@ const AppContent: React.FC = () => {
   const [isCashSuccessOpen, setIsCashSuccessOpen] = useState(false);
   const [isCardSuccessOpen, setIsCardSuccessOpen] = useState(false);
   const [isCardFailureOpen, setIsCardFailureOpen] = useState(false);
-  const [isProcessingCardSuccess, setIsProcessingCardSuccess] = useState(false);
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -100,20 +99,7 @@ const AppContent: React.FC = () => {
         </section>
       )}
 
-      {/* Card Processing Loader Overlay */}
-      {isProcessingCardSuccess && (
-        <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-md flex flex-col items-center justify-center text-white p-4">
-          <svg className="animate-spin h-10 w-10 text-honey-400 mb-4" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-          </svg>
-          <span className="font-sans font-bold text-center text-base sm:text-lg">
-            {language === "ka"
-              ? "ხდება გადახდის გადამოწმება და შეკვეთის გაფორმება..."
-              : "Verifying payment and placing your order..."}
-          </span>
-        </div>
-      )}
+
 
       {/* Main Content Area */}
       <main className="flex-grow">

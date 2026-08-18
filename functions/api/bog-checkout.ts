@@ -37,14 +37,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
     }
 
-    // Set BOG Endpoints based on sandbox mode
-    const authUrl = isSandbox
-      ? "https://oauth2-sandbox.bog.ge/auth/realms/bog/protocol/openid-connect/token"
-      : "https://oauth2.bog.ge/auth/realms/bog/protocol/openid-connect/token";
-
-    const paymentUrl = isSandbox
-      ? "https://api-sandbox.bog.ge/payments/v1/pre-orders"
-      : "https://api.bog.ge/payments/v1/pre-orders";
+    // BOG Production Endpoints
+    const authUrl = "https://oauth2.bog.ge/auth/realms/bog/protocol/openid-connect/token";
+    const paymentUrl = "https://api.bog.ge/payments/v1/ecommerce/orders";
 
     // Logging for debugging credentials issues
     console.log("[BOG Checkout] Environment Mode:", context.env.ENV_MODE);
@@ -73,37 +68,37 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     const accessToken = tokenData.access_token;
 
-    // 2. Create BOG Pre-order
-    const preOrderPayload = {
+    // 2. Create BOG Ecommerce Order
+    const orderPayload = {
       callback_url: `${origin}/api/bog-callback`,
-      description: description || "Beenaturals Honey Order",
       external_order_id: orderId,
       purchase_units: {
         currency: "GEL",
         total_amount: Number(amount),
       },
-      ttl: 15,
-      // BOG also supports redirect_url on some products. Let's include redirect parameters if needed:
-      redirect_url: `${origin}/?payment=success`,
+      redirect_urls: {
+        success: `${origin}/?payment=success`,
+        fail: `${origin}/?payment=failed`
+      }
     };
 
-    const preOrderRes = await fetch(paymentUrl, {
+    const orderRes = await fetch(paymentUrl, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${accessToken}`,
         "Content-Type": "application/json",
         "Accept-Language": "ka", // Force Georgian language interface
       },
-      body: JSON.stringify(preOrderPayload),
+      body: JSON.stringify(orderPayload),
     });
 
-    const preOrderData: any = await preOrderRes.json();
-    if (!preOrderRes.ok) {
-      throw new Error(preOrderData.message || preOrderData.error || "BOG Pre-order creation failed");
+    const orderData: any = await orderRes.json();
+    if (!orderRes.ok) {
+      throw new Error(orderData.message || orderData.error || "BOG Order creation failed");
     }
 
     // 3. Return payment link
-    const redirectUrl = preOrderData._links?.payment_link?.href;
+    const redirectUrl = orderData._links?.redirect?.href || orderData._links?.payment_link?.href;
     if (!redirectUrl) {
       throw new Error("No redirect link found in BOG response");
     }

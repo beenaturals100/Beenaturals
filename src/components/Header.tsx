@@ -6,14 +6,14 @@ export const Header: React.FC = () => {
 
   return (
     <header className="sticky top-0 z-40 w-full transition-all duration-300 glass-effect border-b border-amber-200/40">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
         
         {/* Brand Logo & Info */}
-        <div className="flex items-center space-x-2 sm:space-x-4 shrink-0">
+        <div className="flex items-center space-x-1 sm:space-x-4 shrink-0">
           {/* Brand Logo */}
           <div className="relative group">
             <div className="absolute -inset-0.5 bg-gradient-to-r from-honey-400 to-honey-600 rounded-full blur opacity-30 group-hover:opacity-60 transition duration-300"></div>
-            <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden border border-honey-200 shadow-sm cursor-pointer transform hover:scale-105 transition-transform duration-200 bg-white">
+            <div className="relative w-8 h-8 sm:w-12 sm:h-12 rounded-full overflow-hidden border border-honey-200 shadow-sm cursor-pointer transform hover:scale-105 transition-transform duration-200 bg-white">
               <img
                 src="/logo.png"
                 alt="Beenaturals Logo"
@@ -23,20 +23,20 @@ export const Header: React.FC = () => {
           </div>
 
           <div className="flex flex-col">
-            <h1 className="text-sm sm:text-2xl font-serif font-bold text-stone-900 tracking-tight leading-none m-0">
-              Beenaturals <span className="text-honey-600">•</span> ბინატურალს
+            <h1 className="text-xs sm:text-2xl font-serif font-bold text-stone-900 tracking-tight leading-none m-0">
+              Beenaturals <span className="hidden sm:inline"><span className="text-honey-600">•</span> ბინატურალს</span>
             </h1>
-            <span className="hidden xs:block text-[10px] sm:text-sm font-sans text-stone-600 font-medium tracking-wide mt-1">
+            <span className="hidden sm:block text-[10px] sm:text-sm font-sans text-stone-600 font-medium tracking-wide mt-1">
               {language === "ka" ? "სრულიად ნატურალური თაფლი" : "100% Natural Honey"}
             </span>
           </div>
         </div>
 
         {/* Navigation Tabs */}
-        <nav className="flex bg-stone-100 p-0.5 rounded-xl border border-stone-250/65 shadow-inner mx-2 shrink">
+        <nav className="flex bg-stone-100 p-0.5 rounded-xl border border-stone-250/65 shadow-inner mx-1 sm:mx-2 shrink">
           <button
             onClick={() => setActiveTab("catalog")}
-            className={`px-2.5 sm:px-4 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold font-sans cursor-pointer transition-all duration-150 ${
+            className={`px-2 sm:px-4 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold font-sans cursor-pointer transition-all duration-150 ${
               activeTab === "catalog"
                 ? "bg-honey-500 text-white shadow-sm"
                 : "text-stone-600 hover:text-stone-900"
@@ -46,7 +46,7 @@ export const Header: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab("tracking")}
-            className={`px-2.5 sm:px-4 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold font-sans cursor-pointer transition-all duration-150 ${
+            className={`px-2 sm:px-4 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold font-sans cursor-pointer transition-all duration-150 ${
               activeTab === "tracking"
                 ? "bg-honey-500 text-white shadow-sm"
                 : "text-stone-600 hover:text-stone-900"
@@ -57,12 +57,12 @@ export const Header: React.FC = () => {
         </nav>
 
         {/* Navigation & Controls */}
-        <div className="flex items-center space-x-2 sm:space-x-4 shrink-0">
+        <div className="flex items-center space-x-1.5 sm:space-x-4 shrink-0">
           {/* Language Switcher */}
           <div className="flex bg-stone-100 p-0.5 rounded-xl border border-stone-250/60 shadow-inner">
             <button
               onClick={() => setLanguage("ka")}
-              className={`px-2 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold font-sans cursor-pointer transition-all duration-150 ${
+              className={`px-1.5 sm:px-3 py-1.5 rounded-lg text-[9px] sm:text-xs font-bold font-sans cursor-pointer transition-all duration-150 ${
                 language === "ka"
                   ? "bg-honey-500 text-white shadow-sm"
                   : "text-stone-600 hover:text-stone-900"
@@ -72,7 +72,7 @@ export const Header: React.FC = () => {
             </button>
             <button
               onClick={() => setLanguage("en")}
-              className={`px-2 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold font-sans cursor-pointer transition-all duration-150 ${
+              className={`px-1.5 sm:px-3 py-1.5 rounded-lg text-[9px] sm:text-xs font-bold font-sans cursor-pointer transition-all duration-150 ${
                 language === "en"
                   ? "bg-honey-500 text-white shadow-sm"
                   : "text-stone-600 hover:text-stone-900"

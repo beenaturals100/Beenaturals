@@ -24,11 +24,11 @@ export const ProductCatalog: React.FC = () => {
       </div>
 
       {/* Grid of Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-10">
+      <div className="flex flex-wrap justify-center gap-8 lg:gap-10">
         {PRODUCTS.map((product) => (
           <div
             key={product.id}
-            className="flex flex-col bg-white rounded-2xl overflow-hidden border border-amber-250/20 shadow-sm hover:shadow-xl hover:translate-y-[-4px] transition-all duration-300 group"
+            className="flex flex-col bg-white rounded-2xl overflow-hidden border border-amber-250/20 shadow-sm hover:shadow-xl hover:translate-y-[-4px] transition-all duration-300 group w-full sm:w-[calc(50%-16px)] lg:w-[280px]"
           >
             {/* Product Image Area */}
             <div className="relative overflow-hidden aspect-square bg-stone-50">

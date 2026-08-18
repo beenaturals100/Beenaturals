@@ -24,7 +24,7 @@ export const ProductCatalog: React.FC = () => {
       </div>
 
       {/* Grid of Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-10">
         {PRODUCTS.map((product) => (
           <div
             key={product.id}

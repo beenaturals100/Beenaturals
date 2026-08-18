@@ -1,8 +1,6 @@
 interface Env {
   BOG_CLIENT_ID?: string;
-  BOG_SECRET_KEY?: string;
-  CLIENT_ID?: string;
-  CLIENT_SECRET?: string;
+  BOG_CLIENT_SECRET?: string;
   ENV_MODE?: string;
 }
 
@@ -11,8 +9,11 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const data = await context.request.json() as any;
     const { orderId, amount, description } = data;
     
-    const clientId = context.env.BOG_CLIENT_ID || context.env.CLIENT_ID;
-    const secretKey = context.env.BOG_SECRET_KEY || context.env.CLIENT_SECRET;
+    const rawClientId = context.env.BOG_CLIENT_ID;
+    const rawClientSecret = context.env.BOG_CLIENT_SECRET;
+
+    const clientId = rawClientId ? rawClientId.trim().replace(/^["']|["']$/g, '') : "";
+    const clientSecret = rawClientSecret ? rawClientSecret.trim().replace(/^["']|["']$/g, '') : "";
     const isSandbox = context.env.ENV_MODE !== "production";
 
     // Extract local request origin to construct redirect back URLs
@@ -20,7 +21,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const origin = requestUrl.origin;
 
     // Fallback/Mock Mode if credentials are not configured
-    if (!clientId || !secretKey) {
+    if (!clientId || !clientSecret) {
       console.warn("BOG payment credentials are not configured. Returning mock success callback redirect.");
       return new Response(
         JSON.stringify({
@@ -46,14 +47,16 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       : "https://api.bog.ge/payments/v1/pre-orders";
 
     // 1. Authenticate with BOG (OAuth2 Client Credentials)
-    const basicAuth = btoa(`${clientId}:${secretKey}`);
+    const basicAuth = btoa(`${clientId}:${clientSecret}`);
     const tokenRes = await fetch(authUrl, {
       method: "POST",
       headers: {
         "Authorization": `Basic ${basicAuth}`,
         "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: "grant_type=client_credentials",
+      body: new URLSearchParams({
+        grant_type: "client_credentials"
+      })
     });
 
     const tokenData: any = await tokenRes.json();

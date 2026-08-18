@@ -68,13 +68,48 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     const accessToken = tokenData.access_token;
 
+    const itemPrice = Number(Number(amount).toFixed(2));
+
+    // Check if basket is provided in request, otherwise generate fallback basket
+    let basket = [];
+    if (data.basket && Array.isArray(data.basket) && data.basket.length > 0) {
+      basket = data.basket.map((item: any, index: number) => {
+        const price = Number(Number(item.unit_price || item.price || 0).toFixed(2));
+        const qty = parseInt(item.quantity || item.qty || 1, 10);
+        return {
+          product_id: String(item.product_id || item.id || `item_${index}`),
+          name: String(item.name || item.description || "Honey Product"),
+          description: String(item.description || item.name || "Honey Product"),
+          quantity: qty,
+          unit_price: price,
+          total_amount: Number((price * qty).toFixed(2))
+        };
+      });
+    } else {
+      basket = [
+        {
+          product_id: orderId || "order_honey",
+          name: description || "Beenaturals Honey Order",
+          description: description || "Beenaturals Honey Order",
+          quantity: 1,
+          unit_price: itemPrice,
+          total_amount: itemPrice
+        }
+      ];
+    }
+
+    // Ensure the total_amount matches the sum of the basket items
+    const basketSum = Number(basket.reduce((sum: number, item: any) => sum + item.total_amount, 0).toFixed(2));
+    const totalAmount = basketSum > 0 ? basketSum : itemPrice;
+
     // 2. Create BOG Ecommerce Order
     const orderPayload = {
       callback_url: `${origin}/api/bog-callback`,
       external_order_id: orderId,
       purchase_units: {
         currency: "GEL",
-        total_amount: Number(amount),
+        total_amount: totalAmount,
+        basket: basket
       },
       redirect_urls: {
         success: `${origin}/?payment=success`,

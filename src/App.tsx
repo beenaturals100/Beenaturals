@@ -32,15 +32,50 @@ const AppContent: React.FC = () => {
     }
   }, []);
 
-  const handleCardPaymentSuccess = () => {
+  const handleCardPaymentSuccess = async () => {
     const pendingOrderStr = localStorage.getItem("beenaturals_pending_order");
     
     if (pendingOrderStr) {
+      let trackingCode = "";
       try {
         const orderData = JSON.parse(pendingOrderStr);
         setSuccessOrderId(orderData.orderId);
-        // Display order ID and clear cart
-        setSuccessTrackingCode(orderData.orderId.slice(-6));
+        trackingCode = orderData.orderId.slice(-6);
+
+        // Fallback: Check/Record order status in Notion and send email if webhook hasn't done it yet
+        try {
+          const notionRes = await fetch("/api/notion", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ...orderData,
+              paymentStatus: "გადახდილი"
+            }),
+          });
+          
+          if (notionRes.ok) {
+            const notionData = await notionRes.json();
+            if (notionData.trackingCode) {
+              trackingCode = String(notionData.trackingCode);
+            }
+            
+            // Only send confirmation email if the webhook has not already processed and sent it
+            if (!notionData.alreadyPaid) {
+              console.log("Webhook hasn't triggered email. Sending from client-side fallback...");
+              await fetch("/api/resend", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(orderData),
+              });
+            } else {
+              console.log("Webhook already processed order. Skipped duplicate client-side email trigger.");
+            }
+          }
+        } catch (apiErr) {
+          console.error("Failed to run client-side order logging fallback:", apiErr);
+        }
+
+        setSuccessTrackingCode(trackingCode);
         localStorage.removeItem("beenaturals_pending_order");
         clearCart();
       } catch (err) {

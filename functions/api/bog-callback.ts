@@ -1,4 +1,8 @@
-interface Env {}
+interface Env {
+  NOTION_API_KEY?: string;
+  NOTION_DATABASE_ID?: string;
+  RESEND_API_KEY?: string;
+}
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
@@ -64,42 +68,148 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       });
     }
 
+    const apiKey = context.env.NOTION_API_KEY;
+    const dbId = context.env.NOTION_DATABASE_ID || "3bb634ee8c2a80f79d31c704a9d5281e";
     const origin = requestUrl.origin;
 
-    // 1. Log order to Notion database (uses upsert-aware api/notion)
-    console.log(`Recording order in Notion via webhook: ${shopOrderId}`);
-    const notionRes = await fetch(`${origin}/api/notion`, {
+    if (!apiKey) {
+      console.warn("NOTION_API_KEY is not configured in webhook callback.");
+      return new Response(JSON.stringify({ success: true, message: "Mock success (no API key)" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // 1. Fetch Database schema to know property keys
+    const dbSchemaRes = await fetch(`https://api.notion.com/v1/databases/${dbId}`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Notion-Version": "2022-06-28",
+      },
+    });
+
+    let dbProperties: any = {};
+    if (dbSchemaRes.ok) {
+      const dbInfo: any = await dbSchemaRes.json();
+      dbProperties = dbInfo.properties || {};
+    }
+
+    const findPropKey = (name: string, type?: string) => {
+      const keys = Object.keys(dbProperties);
+      const matchByName = keys.find((k) => k.toLowerCase().replace(/[\s_-]/g, "") === name.toLowerCase().replace(/[\s_-]/g, ""));
+      if (matchByName) return matchByName;
+      if (type) {
+        return keys.find((k) => dbProperties[k].type === type);
+      }
+      return null;
+    };
+
+    const titleKey = findPropKey("title", "title") || "Name";
+    const paymentStatusKey = findPropKey("paymentstatus") || "Payment Status";
+
+    // 2. Query Notion to find the page for this order
+    const queryRes = await fetch(`https://api.notion.com/v1/databases/${dbId}/query`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Notion-Version": "2022-06-28",
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
-        ...orderData,
-        paymentStatus: "გადახდილი" // Set payment status to Paid
+        filter: {
+          property: titleKey,
+          title: {
+            contains: shopOrderId.slice(-6)
+          }
+        }
       }),
     });
 
-    let alreadyPaid = false;
-    if (notionRes.ok) {
-      const notionData: any = await notionRes.json();
-      alreadyPaid = !!notionData.alreadyPaid;
-    } else {
-      const errText = await notionRes.text();
-      console.error(`Notion webhook logging failed: ${errText}`);
+    if (!queryRes.ok) {
+      const errText = await queryRes.text();
+      throw new Error(`Failed to query Notion: ${errText}`);
     }
 
-    // 2. Trigger order confirmation email to merchant via Resend (if not already paid/sent)
-    if (!alreadyPaid) {
-      console.log(`Triggering email notification via webhook for order: ${shopOrderId}`);
-      const resendRes = await fetch(`${origin}/api/resend`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(orderData),
+    const queryData: any = await queryRes.json();
+    const results = queryData.results || [];
+    const pageExists = results.length > 0;
+
+    if (pageExists) {
+      const page = results[0];
+      const pageId = page.id;
+      const props = page.properties || {};
+
+      // 3. Check payment status to prevent duplicate processing
+      let currentStatus = "";
+      if (props[paymentStatusKey]) {
+        const p = props[paymentStatusKey];
+        if (p.type === "select") {
+          currentStatus = p.select?.name || "";
+        } else if (p.type === "rich_text") {
+          currentStatus = p.rich_text?.[0]?.text?.content || "";
+        }
+      }
+
+      if (currentStatus === "გადახდილი") {
+        console.log(`Order ${shopOrderId} is already processed as paid.`);
+        return new Response(JSON.stringify({ success: true, message: "Order already processed" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      // 4. Update status to "გადახდილი" in Notion
+      const updateProperties: any = {};
+      if (dbProperties[paymentStatusKey]?.type === "select" || !dbProperties[paymentStatusKey]) {
+        updateProperties[paymentStatusKey] = { select: { name: "გადახდილი" } };
+      } else if (dbProperties[paymentStatusKey]?.type === "rich_text") {
+        updateProperties[paymentStatusKey] = { rich_text: [{ text: { content: "გადახდილი" } }] };
+      }
+
+      const updateRes = await fetch(`https://api.notion.com/v1/pages/${pageId}`, {
+        method: "PATCH",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Notion-Version": "2022-06-28",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          properties: updateProperties
+        }),
       });
-      if (!resendRes.ok) {
-        const errText = await resendRes.text();
-        console.error(`Resend webhook notification failed: ${errText}`);
+
+      if (!updateRes.ok) {
+        console.error("Failed to update Notion payment status in webhook callback.");
       }
     } else {
-      console.log(`Webhook skipped email trigger (order already processed as paid).`);
+      // 5. Create new page in Notion using parsed orderData
+      console.log(`Creating new Notion page via webhook for order: ${shopOrderId}`);
+      const notionRes = await fetch(`${origin}/api/notion`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...orderData,
+          paymentStatus: "გადახდილი" // Set payment status to Paid
+        }),
+      });
+
+      if (!notionRes.ok) {
+        const errText = await notionRes.text();
+        console.error(`Notion webhook logging failed: ${errText}`);
+      }
+    }
+
+    // 6. Trigger order confirmation email to merchant via Resend
+    console.log(`Triggering email notification via webhook for order: ${shopOrderId}`);
+    const resendRes = await fetch(`${origin}/api/resend`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(orderData),
+    });
+    if (!resendRes.ok) {
+      const errText = await resendRes.text();
+      console.error(`Resend webhook notification failed: ${errText}`);
     }
 
     return new Response(JSON.stringify({ success: true, message: "Order processed and logged" }), {
@@ -109,7 +219,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   } catch (error: any) {
     console.error("BOG Webhook callback processing error:", error);
     return new Response(JSON.stringify({ success: false, error: error.message }), {
-      status: 200, // Always return 200 to stop retry loop on unhandled exceptions
+      status: 200, // Always return 200 to stop BOG retry loop
       headers: { "Content-Type": "application/json" },
     });
   }

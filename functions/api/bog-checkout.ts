@@ -46,12 +46,19 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       ? "https://api-sandbox.bog.ge/payments/v1/pre-orders"
       : "https://api.bog.ge/payments/v1/pre-orders";
 
+    // Logging for debugging credentials issues
+    console.log("[BOG Checkout] Environment Mode:", context.env.ENV_MODE);
+    console.log("[BOG Checkout] Is Sandbox:", isSandbox);
+    console.log("[BOG Checkout] Auth URL being used:", authUrl);
+    console.log("[BOG Checkout] Client ID:", `"${clientId}"`, `(Length: ${clientId.length})`);
+    console.log("[BOG Checkout] Client Secret Length:", clientSecret.length);
+
     // 1. Authenticate with BOG (OAuth2 Client Credentials)
-    const basicAuth = btoa(`${clientId}:${clientSecret}`);
+    const authHeader = btoa(`${clientId.trim()}:${clientSecret.trim()}`);
     const tokenRes = await fetch(authUrl, {
       method: "POST",
       headers: {
-        "Authorization": `Basic ${basicAuth}`,
+        "Authorization": `Basic ${authHeader}`,
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: new URLSearchParams({

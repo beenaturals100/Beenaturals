@@ -28,13 +28,147 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       );
     }
 
-    const { orderId, customer, items, total, paymentMethod } = data;
+    const { orderId, customer, items, total, paymentMethod, paymentStatus } = data;
     const itemsSummary = items
       .map((item: any) => `${item.name} (${item.quantity}x)`)
       .join(", ");
 
-    // A. Query database to find the latest tracking code and increment it
+    // 1. Fetch Database schema to see what columns exist
+    const dbSchemaRes = await fetch(`https://api.notion.com/v1/databases/${dbId}`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Notion-Version": "2022-06-28",
+      },
+    });
+
+    let dbProperties: any = {};
+    if (dbSchemaRes.ok) {
+      const dbInfo: any = await dbSchemaRes.json();
+      dbProperties = dbInfo.properties || {};
+    }
+
+    // Helper: Find property key that matches a name (case-insensitive) or type
+    const findPropKey = (name: string, type?: string) => {
+      const keys = Object.keys(dbProperties);
+      const matchByName = keys.find((k) => k.toLowerCase().replace(/[\s_-]/g, "") === name.toLowerCase().replace(/[\s_-]/g, ""));
+      if (matchByName) return matchByName;
+      if (type) {
+        return keys.find((k) => dbProperties[k].type === type);
+      }
+      return null;
+    };
+
+    // Notion database MUST have a title property. Let's find it.
+    const titleKey = findPropKey("title", "title") || findPropKey("name", "title") || Object.keys(dbProperties).find((k) => dbProperties[k].type === "title") || "Name";
+    const paymentStatusKey = findPropKey("paymentstatus") || findPropKey("payment_status") || "Payment Status";
+
+    // A. Check if the order already exists in the Notion database
+    let existingPageId = null;
     let trackingCode = 1001;
+    let alreadyPaid = false;
+
+    try {
+      const queryRes = await fetch(`https://api.notion.com/v1/databases/${dbId}/query`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Notion-Version": "2022-06-28",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          filter: {
+            property: titleKey,
+            title: {
+              contains: orderId.slice(-6)
+            }
+          }
+        }),
+      });
+
+      if (queryRes.ok) {
+        const queryData: any = await queryRes.json();
+        const results = queryData.results || [];
+        if (results.length > 0) {
+          const page = results[0];
+          existingPageId = page.id;
+          const props = page.properties || {};
+
+          // Read the existing tracking code
+          const trackingKey = findPropKey("trackingcode") || findPropKey("tracking") || findPropKey("code");
+          if (trackingKey) {
+            const p = props[trackingKey];
+            if (p.type === "number") {
+              trackingCode = p.number || trackingCode;
+            } else if (p.type === "rich_text") {
+              trackingCode = parseInt(p.rich_text?.[0]?.text?.content) || trackingCode;
+            }
+          }
+
+          // Check if it's already marked as paid
+          let currentStatus = "";
+          if (props[paymentStatusKey]) {
+            const p = props[paymentStatusKey];
+            if (p.type === "select") {
+              currentStatus = p.select?.name || "";
+            } else if (p.type === "rich_text") {
+              currentStatus = p.rich_text?.[0]?.text?.content || "";
+            }
+          }
+          if (currentStatus === "გადახდილი") {
+            alreadyPaid = true;
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Error querying existing page from Notion:", err);
+    }
+
+    // B. If order exists, perform update
+    if (existingPageId) {
+      // Determine the target payment status value
+      const targetStatusValue = paymentStatus || (paymentMethod === "card" ? "გადახდილი" : "გადაუხდელი");
+
+      if (alreadyPaid && targetStatusValue === "გადახდილი") {
+        console.log(`Order BEE-${orderId.slice(-6)} is already paid. Skipping update.`);
+        return new Response(JSON.stringify({ success: true, message: "Order already marked as paid", trackingCode, alreadyPaid: true }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      // Perform update to the requested status
+      const updateProperties: any = {};
+      if (dbProperties[paymentStatusKey]?.type === "select" || !dbProperties[paymentStatusKey]) {
+        updateProperties[paymentStatusKey] = { select: { name: targetStatusValue } };
+      } else if (dbProperties[paymentStatusKey]?.type === "rich_text") {
+        updateProperties[paymentStatusKey] = { rich_text: [{ text: { content: targetStatusValue } }] };
+      }
+
+      const updateRes = await fetch(`https://api.notion.com/v1/pages/${existingPageId}`, {
+        method: "PATCH",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Notion-Version": "2022-06-28",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          properties: updateProperties
+        }),
+      });
+
+      if (!updateRes.ok) {
+        const errText = await updateRes.text();
+        throw new Error(`Failed to update Notion status: ${errText}`);
+      }
+
+      return new Response(JSON.stringify({ success: true, message: "Order status updated in Notion", trackingCode, alreadyPaid: false }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // C. If order does NOT exist, find the latest tracking code and create a new record
     try {
       const queryRes = await fetch(`https://api.notion.com/v1/databases/${dbId}/query`, {
         method: "POST",
@@ -55,7 +189,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         for (const page of results) {
           const props = page.properties || {};
           let val = 0;
-          // Check for a Tracking Code column
           const trackKey = Object.keys(props).find(
             (k) =>
               k.toLowerCase().replace(/[\s_-]/g, "") === "trackingcode" ||
@@ -67,14 +200,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
             if (p.type === "number") {
               val = p.number || 0;
             } else if (p.type === "rich_text") {
-              const txt = p.rich_text?.[0]?.text?.content || "";
-              val = parseInt(txt) || 0;
+              val = parseInt(p.rich_text?.[0]?.text?.content || "") || 0;
             }
           } else {
-            // Check in title
-            const titleKey = Object.keys(props).find((k) => props[k].type === "title");
-            if (titleKey) {
-              const titleText = props[titleKey].title?.[0]?.text?.content || "";
+            const tKey = Object.keys(props).find((k) => props[k].type === "title");
+            if (tKey) {
+              const titleText = props[tKey].title?.[0]?.text?.content || "";
               const match = titleText.match(/\b(1\d{3}|[2-9]\d{3})\b/);
               if (match) {
                 val = parseInt(match[0]) || 0;
@@ -91,39 +222,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       console.error("Error querying latest tracking code from Notion:", err);
     }
 
-    // 1. Fetch Database schema to see what columns exist
-    const dbSchemaRes = await fetch(`https://api.notion.com/v1/databases/${dbId}`, {
-      method: "GET",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Notion-Version": "2022-06-28",
-      },
-    });
-
-    let dbProperties: any = {};
-    if (dbSchemaRes.ok) {
-      const dbInfo: any = await dbSchemaRes.json();
-      dbProperties = dbInfo.properties || {};
-    }
-
     // 2. Build Notion properties object dynamically
     const properties: any = {};
 
-    // Helper: Find property key that matches a name (case-insensitive) or type
-    const findPropKey = (name: string, type?: string) => {
-      const keys = Object.keys(dbProperties);
-      const matchByName = keys.find((k) => k.toLowerCase().replace(/[\s_-]/g, "") === name.toLowerCase().replace(/[\s_-]/g, ""));
-      if (matchByName) return matchByName;
-      if (type) {
-        return keys.find((k) => dbProperties[k].type === type);
-      }
-      return null;
-    };
-
-    // Notion database MUST have a title property. Let's find it.
-    const titleKey = findPropKey("title", "title") || findPropKey("name", "title") || Object.keys(dbProperties).find((k) => dbProperties[k].type === "title") || "Name";
-
-    // Set Title property
     properties[titleKey] = {
       title: [
         {
@@ -134,7 +235,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       ],
     };
 
-    // Safely add other properties if they exist in schema
     const customerKey = findPropKey("customername") || findPropKey("customer");
     if (customerKey && dbProperties[customerKey]?.type === "rich_text") {
       properties[customerKey] = {
@@ -169,7 +269,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     if (totalKey) {
       if (dbProperties[totalKey]?.type === "number") {
         properties[totalKey] = { number: total };
-      } else if (totalKey && dbProperties[totalKey]?.type === "rich_text") {
+      } else if (dbProperties[totalKey]?.type === "rich_text") {
         properties[totalKey] = { rich_text: [{ text: { content: `${total} GEL` } }] };
       }
     }
@@ -184,7 +284,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }
     }
 
-    // Set Tracking Code property
     const trackingKey = findPropKey("trackingcode") || findPropKey("tracking") || findPropKey("code");
     if (trackingKey) {
       if (dbProperties[trackingKey]?.type === "number") {
@@ -194,9 +293,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }
     }
 
-    // Set Payment Status property
-    const paymentStatusValue = paymentMethod === "card" ? "გადახდილი" : "გადაუხდელი";
-    const paymentStatusKey = findPropKey("paymentstatus") || findPropKey("payment_status") || "Payment Status";
+    const paymentStatusValue = paymentStatus || (paymentMethod === "card" ? "გადახდილი" : "გადაუხდელი");
     if (paymentStatusKey) {
       if (dbProperties[paymentStatusKey]?.type === "select" || !dbProperties[paymentStatusKey]) {
         properties[paymentStatusKey] = { select: { name: paymentStatusValue } };
@@ -219,9 +316,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }),
     });
 
-    const _createData = await createRes.json();
     if (!createRes.ok) {
-      // If schema mapping failed, attempt absolute minimum fallback (just Title)
       console.warn("Detailed schema mapping failed. Attempting minimum fallback title-only record.");
       const fallbackRes = await fetch("https://api.notion.com/v1/pages", {
         method: "POST",
@@ -252,7 +347,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }
     }
 
-    return new Response(JSON.stringify({ success: true, message: "Order logged in Notion", trackingCode }), {
+    return new Response(JSON.stringify({ success: true, message: "Order logged in Notion", trackingCode, alreadyPaid: false }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });

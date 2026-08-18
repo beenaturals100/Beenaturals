@@ -112,8 +112,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         basket: basket
       },
       redirect_urls: {
-        success: `${origin}/?payment=success`,
-        fail: `${origin}/?payment=failed`
+        success: `${origin}/order-success`,
+        fail: `${origin}/order-fail`
       }
     };
 

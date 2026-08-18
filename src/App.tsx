@@ -43,26 +43,33 @@ const AppContent: React.FC = () => {
         const orderData = JSON.parse(pendingOrderStr);
         setSuccessOrderId(orderData.orderId);
 
-        // 1. Log order to Notion database
+        // 1. Log order to Notion database (upsert to Paid)
         const notionRes = await fetch("/api/notion", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(orderData),
+          body: JSON.stringify({
+            ...orderData,
+            paymentStatus: "გადახდილი"
+          }),
         });
         
+        let alreadyPaid = false;
         if (notionRes.ok) {
           const notionData = await notionRes.json();
           if (notionData.trackingCode) {
             trackingCode = String(notionData.trackingCode);
           }
+          alreadyPaid = !!notionData.alreadyPaid;
         }
 
-        // 2. Send email notification via Resend
-        await fetch("/api/resend", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(orderData),
-        });
+        // 2. Send email notification via Resend (only if not already processed by webhook)
+        if (!alreadyPaid) {
+          await fetch("/api/resend", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(orderData),
+          });
+        }
 
         localStorage.removeItem("beenaturals_pending_order");
         clearCart();

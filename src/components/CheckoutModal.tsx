@@ -107,7 +107,32 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     } else {
       // Card Payment Flow
       try {
-        localStorage.setItem("beenaturals_pending_order", JSON.stringify(orderData));
+        // 1. Pre-log the order in Notion as "Unpaid" (გადაუხდელი)
+        let trackingCode = String(Math.floor(1000 + Math.random() * 9000));
+        try {
+          const notionRes = await fetch("/api/notion", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ...orderData,
+              paymentStatus: "გადაუხდელი"
+            }),
+          });
+          if (notionRes.ok) {
+            const notionData = await notionRes.json();
+            if (notionData.trackingCode) {
+              trackingCode = String(notionData.trackingCode);
+            }
+          }
+        } catch (e) {
+          console.error("Failed to pre-log order in Notion:", e);
+        }
+
+        // Store the pending order with trackingCode in localStorage
+        localStorage.setItem(
+          "beenaturals_pending_order",
+          JSON.stringify({ ...orderData, trackingCode })
+        );
 
         const res = await fetch('/api/bog-checkout', {
           method: 'POST',

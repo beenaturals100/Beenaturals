@@ -16,6 +16,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     cartTotalSum,
     clearCart,
     language,
+    updateQuantity,
+    removeFromCart,
   } = useCart();
 
   const [firstName, setFirstName] = useState("");
@@ -422,18 +424,61 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             {/* List */}
             <div className="space-y-3 divide-y divide-stone-100 max-h-56 overflow-y-auto pr-1">
               {cart.map((item) => (
-                <div key={item.product.id} className="pt-3 flex items-start justify-between text-sm">
-                  <div className="pr-4">
-                    <span className="font-bold text-stone-900">
+                <div key={item.product.id} className="pt-3 flex items-center justify-between text-sm">
+                  <div className="flex-1 min-w-0 pr-2">
+                    <span className="font-bold text-stone-900 block truncate">
                       {language === "ka" ? item.product.nameKa : item.product.nameEn}
                     </span>
                     <span className="text-stone-500 text-xs block mt-0.5">
-                      {item.quantity} × {language === "ka" ? item.product.weight : item.product.weight.replace("კგ", "kg")}
+                      {language === "ka" ? item.product.weight : item.product.weight.replace("კგ", "kg")}
                     </span>
                   </div>
-                  <span className="font-bold text-stone-800 shrink-0">
-                    {item.product.price * item.quantity} GEL
-                  </span>
+
+                  <div className="flex items-center space-x-2">
+                    {/* Quantity Controls */}
+                    <div className="flex items-center border border-stone-200 rounded-lg overflow-hidden bg-white">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (item.quantity > 1) {
+                            updateQuantity(item.product.id, item.quantity - 1);
+                          } else {
+                            removeFromCart(item.product.id);
+                          }
+                        }}
+                        className="px-2 py-0.5 text-xs text-stone-600 hover:bg-stone-100 active:bg-stone-200 transition-colors"
+                      >
+                        –
+                      </button>
+                      <span className="px-1 text-xs font-bold text-stone-800 min-w-[16px] text-center">
+                        {item.quantity}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                        className="px-2 py-0.5 text-xs text-stone-600 hover:bg-stone-100 active:bg-stone-200 transition-colors"
+                      >
+                        +
+                      </button>
+                    </div>
+
+                    {/* Price and Trash button */}
+                    <div className="flex items-center space-x-2 shrink-0">
+                      <span className="font-bold text-stone-800 min-w-[50px] text-right">
+                        {item.product.price * item.quantity} GEL
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeFromCart(item.product.id)}
+                        className="p-1 text-stone-400 hover:text-red-500 rounded-lg hover:bg-stone-100 transition-colors cursor-pointer"
+                        title={language === "ka" ? "წაშლა" : "Remove"}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>

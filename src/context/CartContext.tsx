@@ -47,16 +47,6 @@ export const PRODUCTS: Product[] = [
     price: 35,
     image: "/honeycomb.jpg",
   },
-  {
-    id: "test-product",
-    nameKa: "სატესტო პროდუქტი",
-    nameEn: "Test Product",
-    descriptionKa: "დროებითი სატესტო ნივთი გადახდების შესამოწმებლად.",
-    descriptionEn: "Temporary test item for live payment verification.",
-    weight: "0.1 კგ",
-    price: 1,
-    image: "/honey.jpg",
-  },
 ];
 
 interface CartContextType {

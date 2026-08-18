@@ -33,53 +33,22 @@ const AppContent: React.FC = () => {
     }
   }, []);
 
-  const handleCardPaymentSuccess = async () => {
-    setIsProcessingCardSuccess(true);
+  const handleCardPaymentSuccess = () => {
     const pendingOrderStr = localStorage.getItem("beenaturals_pending_order");
     
     if (pendingOrderStr) {
-      let trackingCode = String(Math.floor(1000 + Math.random() * 9000));
       try {
         const orderData = JSON.parse(pendingOrderStr);
         setSuccessOrderId(orderData.orderId);
-
-        // 1. Log order to Notion database (upsert to Paid)
-        const notionRes = await fetch("/api/notion", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...orderData,
-            paymentStatus: "გადახდილი"
-          }),
-        });
-        
-        let alreadyPaid = false;
-        if (notionRes.ok) {
-          const notionData = await notionRes.json();
-          if (notionData.trackingCode) {
-            trackingCode = String(notionData.trackingCode);
-          }
-          alreadyPaid = !!notionData.alreadyPaid;
-        }
-
-        // 2. Send email notification via Resend (only if not already processed by webhook)
-        if (!alreadyPaid) {
-          await fetch("/api/resend", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(orderData),
-          });
-        }
-
+        // Display order ID and clear cart
+        setSuccessTrackingCode(orderData.orderId.slice(-6));
         localStorage.removeItem("beenaturals_pending_order");
         clearCart();
       } catch (err) {
-        console.error("Error finalizing card order:", err);
+        console.error("Error reading card order details:", err);
       }
-      setSuccessTrackingCode(trackingCode);
     }
 
-    setIsProcessingCardSuccess(false);
     setIsCardSuccessOpen(true);
     cleanUrlParams();
   };
@@ -101,7 +70,7 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-amber-50/20">
+    <div className="min-h-screen flex flex-col bg-amber-50/20 w-full overflow-x-hidden">
       <Header />
 
       {/* Hero Banner Section */}

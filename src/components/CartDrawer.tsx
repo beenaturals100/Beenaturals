@@ -30,7 +30,7 @@ export const CartDrawer: React.FC = () => {
 
       <div className="absolute inset-y-0 right-0 max-w-full flex">
         {/* Drawer Panel */}
-        <div className="w-screen max-w-md bg-white shadow-2xl flex flex-col animate-slide-up">
+        <div className="w-screen max-w-md h-full bg-white shadow-2xl flex flex-col animate-slide-up">
           {/* Header */}
           <div className="px-6 py-5 border-b border-stone-100 flex items-center justify-between">
             <h2 className="text-lg font-bold text-stone-950 flex items-center">
@@ -119,19 +119,21 @@ export const CartDrawer: React.FC = () => {
 
                   {/* Quantity Controls & Delete */}
                   <div className="flex flex-col items-end space-y-2">
-                    <div className="flex items-center border border-stone-200 rounded-lg bg-stone-50/50">
+                    <div className="flex items-center border border-stone-200 rounded-lg bg-white overflow-hidden">
                       <button
+                        type="button"
                         onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
-                        className="px-2.5 py-1 text-stone-500 hover:text-stone-850 cursor-pointer"
+                        className="w-9 h-9 flex items-center justify-center text-stone-500 hover:text-stone-850 hover:bg-stone-50 active:bg-stone-100 transition-colors cursor-pointer"
                       >
                         -
                       </button>
-                      <span className="px-2 text-sm font-bold text-stone-800">
+                      <span className="px-2.5 text-sm font-bold text-stone-850 min-w-[20px] text-center">
                         {item.quantity}
                       </span>
                       <button
+                        type="button"
                         onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
-                        className="px-2.5 py-1 text-stone-500 hover:text-stone-850 cursor-pointer"
+                        className="w-9 h-9 flex items-center justify-center text-stone-500 hover:text-stone-850 hover:bg-stone-50 active:bg-stone-100 transition-colors cursor-pointer"
                       >
                         +
                       </button>

@@ -107,32 +107,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     } else {
       // Card Payment Flow
       try {
-        // 1. Pre-log the order in Notion as "Unpaid" (გადაუხდელი)
-        let trackingCode = String(Math.floor(1000 + Math.random() * 9000));
-        try {
-          const notionRes = await fetch("/api/notion", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              ...orderData,
-              paymentStatus: "გადაუხდელი"
-            }),
-          });
-          if (notionRes.ok) {
-            const notionData = await notionRes.json();
-            if (notionData.trackingCode) {
-              trackingCode = String(notionData.trackingCode);
-            }
-          }
-        } catch (e) {
-          console.error("Failed to pre-log order in Notion:", e);
-        }
-
-        // Store the pending order with trackingCode in localStorage
-        localStorage.setItem(
-          "beenaturals_pending_order",
-          JSON.stringify({ ...orderData, trackingCode })
-        );
+        localStorage.setItem("beenaturals_pending_order", JSON.stringify(orderData));
 
         const res = await fetch('/api/bog-checkout', {
           method: 'POST',
@@ -145,6 +120,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             description: language === "ka" 
               ? `Beenaturals Honey შეკვეთა ${orderData.orderId}` 
               : `Beenaturals Honey Order ${orderData.orderId}`,
+            orderData
           }),
         });
         
@@ -184,7 +160,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto font-sans flex items-center justify-center p-4 animate-fade-in">
+    <div className="fixed inset-0 z-50 overflow-y-auto font-sans flex items-center justify-center p-2 sm:p-4 animate-fade-in">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-stone-900/40 backdrop-blur-sm transition-opacity"
@@ -192,9 +168,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       />
 
       {/* Modal Box */}
-      <div className="relative bg-white rounded-3xl shadow-2xl max-w-4xl w-full overflow-hidden flex flex-col md:flex-row border border-amber-100 animate-scale-in max-h-[90vh]">
+      <div className="relative bg-white rounded-3xl shadow-2xl max-w-4xl w-full flex flex-col md:flex-row border border-amber-100 animate-scale-in max-h-[95dvh] md:max-h-[90vh] overflow-y-auto md:overflow-hidden">
         {/* Left Side: Forms */}
-        <div className="flex-1 p-6 sm:p-8 overflow-y-auto">
+        <div className="p-5 sm:p-8 md:flex-1 md:overflow-y-auto">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl sm:text-2xl font-serif font-bold text-stone-950">
               {language === "ka" ? "შეკვეთის გაფორმება" : "Checkout"}
@@ -440,7 +416,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         </div>
 
         {/* Right Side: Order Summary Panel */}
-        <div className="w-full md:w-80 bg-stone-50 p-6 sm:p-8 border-t md:border-t-0 md:border-l border-stone-100 flex flex-col justify-between overflow-y-auto">
+        <div className="w-full md:w-80 bg-stone-50 p-5 sm:p-8 border-t md:border-t-0 md:border-l border-stone-100 flex flex-col justify-between md:overflow-y-auto shrink-0">
           <div>
             <h3 className="text-lg font-bold text-stone-950 mb-4 pb-2 border-b border-stone-200">
               {language === "ka" ? "თქვენი შეკვეთა" : "Your Order"}
@@ -471,17 +447,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                             removeFromCart(item.product.id);
                           }
                         }}
-                        className="px-2 py-0.5 text-xs text-stone-600 hover:bg-stone-100 active:bg-stone-200 transition-colors"
+                        className="w-8 h-8 flex items-center justify-center text-sm font-bold text-stone-600 hover:bg-stone-100 active:bg-stone-200 transition-colors"
                       >
                         –
                       </button>
-                      <span className="px-1 text-xs font-bold text-stone-800 min-w-[16px] text-center">
+                      <span className="px-1.5 text-xs font-bold text-stone-850 min-w-[20px] text-center">
                         {item.quantity}
                       </span>
                       <button
                         type="button"
                         onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
-                        className="px-2 py-0.5 text-xs text-stone-600 hover:bg-stone-100 active:bg-stone-200 transition-colors"
+                        className="w-8 h-8 flex items-center justify-center text-sm font-bold text-stone-600 hover:bg-stone-100 active:bg-stone-200 transition-colors"
                       >
                         +
                       </button>
@@ -495,10 +471,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       <button
                         type="button"
                         onClick={() => removeFromCart(item.product.id)}
-                        className="p-1 text-stone-400 hover:text-red-500 rounded-lg hover:bg-stone-100 transition-colors cursor-pointer"
+                        className="w-8 h-8 flex items-center justify-center text-stone-400 hover:text-rose-500 rounded-xl hover:bg-stone-150 transition-colors cursor-pointer"
                         title={language === "ka" ? "წაშლა" : "Remove"}
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
                       </button>

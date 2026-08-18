@@ -7,7 +7,7 @@ interface Env {
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
     const data = await context.request.json() as any;
-    const { orderId, amount, description } = data;
+    const { orderId, amount, description, orderData: clientOrderData } = data;
     
     const rawClientId = context.env.BOG_CLIENT_ID;
     const rawClientSecret = context.env.BOG_CLIENT_SECRET;
@@ -102,9 +102,24 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const basketSum = Number(basket.reduce((sum: number, item: any) => sum + item.total_amount, 0).toFixed(2));
     const totalAmount = basketSum > 0 ? basketSum : itemPrice;
 
+    // Base64 encode the clientOrderData to pass it safely through the callback URL
+    let callbackUrl = "https://beenaturals.store/api/bog-callback";
+    if (clientOrderData) {
+      try {
+        const serialized = JSON.stringify(clientOrderData);
+        // Base64 encode the payload safely supporting unicode/UTF-8 characters
+        const encoded = btoa(encodeURIComponent(serialized).replace(/%([0-9A-F]{2})/g, (_, p1) => {
+          return String.fromCharCode(parseInt(p1, 16));
+        }));
+        callbackUrl = `https://beenaturals.store/api/bog-callback?data=${encoded}`;
+      } catch (err) {
+        console.error("Error serializing order data for callback:", err);
+      }
+    }
+
     // 2. Create BOG Ecommerce Order
     const orderPayload = {
-      callback_url: `${origin}/api/bog-callback`,
+      callback_url: callbackUrl,
       external_order_id: orderId,
       purchase_units: {
         currency: "GEL",

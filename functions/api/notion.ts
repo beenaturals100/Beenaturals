@@ -5,7 +5,7 @@ interface Env {
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
-    const data = await context.request.json();
+    const data = await context.request.json() as any;
     const apiKey = context.env.NOTION_API_KEY;
     const dbId = context.env.NOTION_DATABASE_ID || "3bb634ee8c2a80f79d31c704a9d5281e";
 

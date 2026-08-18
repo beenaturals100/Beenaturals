@@ -1,16 +1,18 @@
 interface Env {
   BOG_CLIENT_ID?: string;
   BOG_SECRET_KEY?: string;
+  CLIENT_ID?: string;
+  CLIENT_SECRET?: string;
   ENV_MODE?: string;
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
-    const data = await context.request.json();
+    const data = await context.request.json() as any;
     const { orderId, amount, description } = data;
     
-    const clientId = context.env.BOG_CLIENT_ID;
-    const secretKey = context.env.BOG_SECRET_KEY;
+    const clientId = context.env.BOG_CLIENT_ID || context.env.CLIENT_ID;
+    const secretKey = context.env.BOG_SECRET_KEY || context.env.CLIENT_SECRET;
     const isSandbox = context.env.ENV_MODE !== "production";
 
     // Extract local request origin to construct redirect back URLs

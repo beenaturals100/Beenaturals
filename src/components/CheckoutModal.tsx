@@ -107,7 +107,19 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       try {
         localStorage.setItem("beenaturals_pending_order", JSON.stringify(orderData));
 
-        const res = await fetch('/api/checkout', { method: 'POST' });
+        const res = await fetch('/api/bog-checkout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            orderId: orderData.orderId,
+            amount: orderData.total,
+            description: language === "ka" 
+              ? `Beenaturals Honey შეკვეთა ${orderData.orderId}` 
+              : `Beenaturals Honey Order ${orderData.orderId}`,
+          }),
+        });
         
         let data: any;
         try {

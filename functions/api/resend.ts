@@ -5,7 +5,7 @@ interface Env {
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
-    const data = await context.request.json();
+    const data = await context.request.json() as any;
     const apiKey = context.env.RESEND_API_KEY;
     // Send all order notification emails to beenaturals100@gmail.com since Resend is in testing mode
     const recipientEmail = "beenaturals100@gmail.com";
